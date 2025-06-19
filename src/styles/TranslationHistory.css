@@ -1,0 +1,246 @@
+/* TranslationHistory.css */
+.translation-history {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #e5e7eb;
+  background-color: #f9fafb;
+}
+
+.history-title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.history-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.clear-button {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #dc2626;
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.clear-button:hover {
+  background-color: #fee2e2;
+}
+
+.clear-button:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.2);
+}
+
+.search-container {
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.search-input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.9375rem;
+  color: #1f2937;
+  background-color: #f9fafb;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.search-input:focus {
+  outline: none;
+  background-color: #ffffff;
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
+}
+
+.translation-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 500px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #d1d5db transparent;
+}
+
+.translation-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.translation-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.translation-list::-webkit-scrollbar-thumb {
+  background-color: #d1d5db;
+  border-radius: 3px;
+}
+
+.translation-item {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #f3f4f6;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.translation-item:last-child {
+  border-bottom: none;
+}
+
+.translation-item:hover {
+  background-color: #f9fafb;
+}
+
+.translation-item:active {
+  background-color: #f3f4f6;
+}
+
+.translation-original,
+.translation-result {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 0.5rem;
+  line-height: 1.5;
+}
+
+.translation-result {
+  margin-bottom: 0.5rem;
+  color: #1f2937;
+  font-weight: 500;
+}
+
+.language-badge {
+  display: inline-block;
+  min-width: 36px;
+  padding: 0.125rem 0.5rem;
+  margin-right: 0.75rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #4f46e5;
+  background-color: #eef2ff;
+  border-radius: 4px;
+  text-align: center;
+  text-transform: uppercase;
+  flex-shrink: 0;
+  margin-top: 0.25rem;
+}
+
+.translation-original .language-badge {
+  color: #6b7280;
+  background-color: #f3f4f6;
+}
+
+.translation-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.timestamp {
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+.delete-button {
+  padding: 0.25rem 0.5rem;
+  font-size: 1.25rem;
+  line-height: 1;
+  color: #9ca3af;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  opacity: 0;
+  margin-left: 0.5rem;
+}
+
+.translation-item:hover .delete-button {
+  opacity: 1;
+}
+
+.delete-button:hover {
+  color: #dc2626;
+  background-color: #fef2f2;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1.5rem;
+  text-align: center;
+  color: #6b7280;
+}
+
+.empty-state p {
+  margin: 0.5rem 0 0;
+  font-size: 0.9375rem;
+  color: #6b7280;
+}
+
+/* Loading and error states */
+.loading,
+.error {
+  padding: 2rem;
+  text-align: center;
+  color: #6b7280;
+}
+
+.error {
+  color: #dc2626;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .history-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+  
+  .history-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+  
+  .translation-item {
+    padding: 0.875rem 1rem;
+  }
+  
+  .language-badge {
+    margin-right: 0.5rem;
+  }
+  
+  .delete-button {
+    opacity: 1;
+  }
+}

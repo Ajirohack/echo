@@ -1,0 +1,80 @@
+{
+  "inputDevices": {
+    "default": {
+      "id": "default",
+      "label": "Default Input",
+      "type": "microphone",
+      "sampleRate": 44100,
+      "channels": 1,
+      "volume": 1.0,
+      "enabled": true
+    }
+  },
+  "outputDevices": {
+    "default": {
+      "id": "default",
+      "label": "Default Output",
+      "type": "speaker",
+      "sampleRate": 44100,
+      "channels": 2,
+      "volume": 0.8,
+      "enabled": true
+    }
+  },
+  "virtualDevices": {
+    "virtualMic": {
+      "id": "virtualMic",
+      "label": "Virtual Microphone (Translator Output)",
+      "type": "virtual",
+      "sampleRate": 44100,
+      "channels": 1,
+      "enabled": true
+    },
+    "virtualSpeaker": {
+      "id": "virtualSpeaker",
+      "label": "Virtual Speaker (Translator Input)",
+      "type": "virtual",
+      "sampleRate": 44100,
+      "channels": 2,
+      "enabled": true
+    }
+  },
+  "processing": {
+    "noiseSuppression": true,
+    "echoCancellation": true,
+    "autoGainControl": true,
+    "highPassFilter": true,
+    "voiceActivityDetection": {
+      "enabled": true,
+      "threshold": -50,
+      "holdTime": 500
+    },
+    "silenceDetection": {
+      "enabled": true,
+      "threshold": -60,
+      "minDuration": 1000
+    },
+    "volumeNormalization": {
+      "enabled": true,
+      "targetLevel": -16
+    }
+  },
+  "buffering": {
+    "inputBufferSize": 2048,
+    "outputBufferSize": 2048,
+    "queueSize": 10,
+    "maxLatency": 2000
+  },
+  "format": {
+    "sampleFormat": "float32",
+    "endianness": "little",
+    "signed": true,
+    "bitDepth": 32
+  },
+  "advanced": {
+    "enableDebugLogging": false,
+    "saveRawAudio": false,
+    "saveProcessedAudio": false,
+    "audioSavePath": ""
+  }
+}

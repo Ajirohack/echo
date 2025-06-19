@@ -1,0 +1,23 @@
+{
+  "recursive": true,
+  "timeout": 10000,
+  "require": [
+    "./tests/test-helper.js"
+  ],
+  "extension": ["js"],
+  "spec": ["tests/**/*.test.js"],
+  "exit": true,
+  "color": true,
+  "bail": false,
+  "parallel": false,
+  "check-leaks": true,
+  "forbid-only": false,
+  "forbid-pending": false,
+  "retries": 1,
+  "slow": 200,
+  "sort": false,
+  "watch": false,
+  "reporter": "spec",
+  "inline-diffs": true,
+  "full-trace": false
+}

@@ -1,0 +1,212 @@
+{
+  "sampleTranslations": {
+    "en": {
+      "es": {
+        "Hello": "Hola",
+        "Hello world": "Hola mundo",
+        "How are you?": "¿Cómo estás?",
+        "Thank you": "Gracias",
+        "Good morning": "Buenos días",
+        "Good evening": "Buenas noches",
+        "I would like to schedule a meeting": "Me gustaría programar una reunión",
+        "What time works for you?": "¿Qué hora te funciona?",
+        "Let's meet at 2 PM": "Nos vemos a las 2 PM",
+        "The weather is nice today": "El clima está agradable hoy",
+        "Do you have any questions?": "¿Tienes alguna pregunta?",
+        "Please follow me": "Por favor, sígueme",
+        "Where is the bathroom?": "¿Dónde está el baño?",
+        "I don't understand": "No entiendo",
+        "Can you repeat that?": "¿Puedes repetir eso?",
+        "What is your name?": "¿Cómo te llamas?",
+        "My name is John": "Me llamo John",
+        "Nice to meet you": "Encantado de conocerte",
+        "I need help": "Necesito ayuda",
+        "Call the police": "Llama a la policía"
+      },
+      "fr": {
+        "Hello": "Bonjour",
+        "Hello world": "Bonjour le monde",
+        "How are you?": "Comment allez-vous?",
+        "Thank you": "Merci",
+        "Good morning": "Bonjour",
+        "Good evening": "Bonsoir",
+        "I would like to schedule a meeting": "Je voudrais organiser une réunion",
+        "What time works for you?": "Quelle heure vous convient?",
+        "Let's meet at 2 PM": "Retrouvons-nous à 14h",
+        "The weather is nice today": "Il fait beau aujourd'hui",
+        "Do you have any questions?": "Avez-vous des questions?",
+        "Please follow me": "Suivez-moi s'il vous plaît",
+        "Where is the bathroom?": "Où sont les toilettes?",
+        "I don't understand": "Je ne comprends pas",
+        "Can you repeat that?": "Pouvez-vous répéter?",
+        "What is your name?": "Comment vous appelez-vous?",
+        "My name is John": "Je m'appelle John",
+        "Nice to meet you": "Enchanté",
+        "I need help": "J'ai besoin d'aide",
+        "Call the police": "Appelez la police"
+      },
+      "de": {
+        "Hello": "Hallo",
+        "Hello world": "Hallo Welt",
+        "How are you?": "Wie geht es dir?",
+        "Thank you": "Danke",
+        "Good morning": "Guten Morgen",
+        "Good evening": "Guten Abend",
+        "I would like to schedule a meeting": "Ich möchte ein Meeting planen",
+        "What time works for you?": "Welche Zeit passt dir?",
+        "Let's meet at 2 PM": "Treffen wir uns um 14 Uhr",
+        "The weather is nice today": "Das Wetter ist heute schön",
+        "Do you have any questions?": "Hast du Fragen?",
+        "Please follow me": "Bitte folge mir",
+        "Where is the bathroom?": "Wo ist die Toilette?",
+        "I don't understand": "Ich verstehe nicht",
+        "Can you repeat that?": "Kannst du das wiederholen?",
+        "What is your name?": "Wie heißt du?",
+        "My name is John": "Ich heiße John",
+        "Nice to meet you": "Freut mich, dich kennenzulernen",
+        "I need help": "Ich brauche Hilfe",
+        "Call the police": "Rufen Sie die Polizei"
+      },
+      "ja": {
+        "Hello": "こんにちは",
+        "Hello world": "こんにちは世界",
+        "How are you?": "お元気ですか？",
+        "Thank you": "ありがとう",
+        "Good morning": "おはようございます",
+        "Good evening": "こんばんは",
+        "I would like to schedule a meeting": "会議をスケジュールしたいです",
+        "What time works for you?": "何時がいいですか？",
+        "Let's meet at 2 PM": "午後2時に会いましょう",
+        "The weather is nice today": "今日は天気がいいですね",
+        "Do you have any questions?": "何か質問はありますか？",
+        "Please follow me": "ついてきてください",
+        "Where is the bathroom?": "お手洗いはどこですか？",
+        "I don't understand": "わかりません",
+        "Can you repeat that?": "もう一度言ってもらえますか？",
+        "What is your name?": "お名前は何ですか？",
+        "My name is John": "私の名前はジョンです",
+        "Nice to meet you": "はじめまして",
+        "I need help": "助けが必要です",
+        "Call the police": "警察を呼んでください"
+      }
+    }
+  },
+  "testCases": [
+    {
+      "text": "Hello, how are you today?",
+      "fromLanguage": "en",
+      "toLanguage": "es",
+      "options": { "priority": "quality" }
+    },
+    {
+      "text": "Artificial intelligence is transforming how we interact with technology.",
+      "fromLanguage": "en",
+      "toLanguage": "fr",
+      "options": {
+        "context": "Technical article about AI advancements",
+        "domain": "technical"
+      }
+    },
+    {
+      "text": "This should use the caching mechanism for better performance.",
+      "fromLanguage": "en",
+      "toLanguage": "de",
+      "options": { "priority": "speed" }
+    },
+    {
+      "text": "Let's schedule a meeting for tomorrow at 2 PM.",
+      "fromLanguage": "en",
+      "toLanguage": "ja",
+      "options": {
+        "domain": "business",
+        "conversationId": "business-meeting-12345"
+      }
+    },
+    {
+      "text": "The weather is beautiful today, isn't it?",
+      "fromLanguage": "en",
+      "toLanguage": "es",
+      "options": { "domain": "casual", "priority": "quality" }
+    }
+  ],
+  "supportedLanguages": {
+    "en": {
+      "name": "English",
+      "nativeName": "English",
+      "direction": "ltr",
+      "code": "en",
+      "supportLevel": "full"
+    },
+    "es": {
+      "name": "Spanish",
+      "nativeName": "Español",
+      "direction": "ltr",
+      "code": "es",
+      "supportLevel": "full"
+    },
+    "fr": {
+      "name": "French",
+      "nativeName": "Français",
+      "direction": "ltr",
+      "code": "fr",
+      "supportLevel": "full"
+    },
+    "de": {
+      "name": "German",
+      "nativeName": "Deutsch",
+      "direction": "ltr",
+      "code": "de",
+      "supportLevel": "full"
+    },
+    "ja": {
+      "name": "Japanese",
+      "nativeName": "日本語",
+      "direction": "ltr",
+      "code": "ja",
+      "supportLevel": "full"
+    },
+    "zh": {
+      "name": "Chinese (Simplified)",
+      "nativeName": "中文",
+      "direction": "ltr",
+      "code": "zh",
+      "supportLevel": "full"
+    },
+    "ru": {
+      "name": "Russian",
+      "nativeName": "Русский",
+      "direction": "ltr",
+      "code": "ru",
+      "supportLevel": "full"
+    },
+    "ar": {
+      "name": "Arabic",
+      "nativeName": "العربية",
+      "direction": "rtl",
+      "code": "ar",
+      "supportLevel": "partial"
+    }
+  },
+  "domainExamples": {
+    "business": [
+      "I would like to schedule a meeting next week.",
+      "Please review the quarterly financial report.",
+      "We need to discuss the project timeline."
+    ],
+    "technical": [
+      "The API returns a JSON response with the following structure.",
+      "Machine learning models require significant computational resources.",
+      "The compiler optimizes the code execution path."
+    ],
+    "casual": [
+      "How are you doing today?",
+      "The weather is really nice outside.",
+      "What do you want to eat for dinner?"
+    ],
+    "medical": [
+      "The patient presents with symptoms of acute bronchitis.",
+      "Take this medication twice daily with food.",
+      "Your blood pressure reading is within normal range."
+    ]
+  }
+}

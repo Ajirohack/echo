@@ -1,0 +1,67 @@
+{
+  "services": {
+    "deepl": {
+      "enabled": true,
+      "priority": 1,
+      "apiKey": "YOUR_DEEPL_API_KEY",
+      "rateLimitPerMinute": 600,
+      "timeout": 5000,
+      "maxRetries": 3,
+      "preferredForLanguages": ["DE", "FR", "ES", "IT", "NL", "PL", "RU"]
+    },
+    "gpt4o": {
+      "enabled": true,
+      "priority": 2,
+      "apiKey": "YOUR_OPENAI_API_KEY",
+      "model": "gpt-4o",
+      "maxTokens": 1000,
+      "temperature": 0.3,
+      "timeout": 10000,
+      "maxRetries": 2,
+      "preferredForContextAwareness": true,
+      "preferredForRareLanguages": true
+    },
+    "google": {
+      "enabled": true,
+      "priority": 3,
+      "keyFilePath": "path/to/google-service-account.json",
+      "projectId": "YOUR_PROJECT_ID",
+      "timeout": 5000,
+      "maxRetries": 3,
+      "model": "nmt"
+    },
+    "azure": {
+      "enabled": true,
+      "priority": 4,
+      "apiKey": "YOUR_AZURE_TRANSLATOR_KEY",
+      "endpoint": "https://api.cognitive.microsofttranslator.com",
+      "region": "eastus",
+      "timeout": 5000,
+      "maxRetries": 3,
+      "category": "general"
+    }
+  },
+  "general": {
+    "cacheEnabled": true,
+    "cacheTTL": 3600,
+    "maxCacheSize": 1000,
+    "defaultSourceLanguage": "en",
+    "defaultTargetLanguage": "es",
+    "preferenceByDomain": {
+      "business": ["deepl", "gpt4o", "azure", "google"],
+      "technical": ["gpt4o", "deepl", "google", "azure"],
+      "general": ["google", "deepl", "azure", "gpt4o"],
+      "medical": ["gpt4o", "deepl", "azure", "google"],
+      "legal": ["gpt4o", "deepl", "azure", "google"]
+    },
+    "failoverEnabled": true,
+    "qualityThreshold": 0.7,
+    "contextHistorySize": 10,
+    "maxRetryAttempts": 3
+  },
+  "metrics": {
+    "enablePerformanceTracking": true,
+    "logDetailedMetrics": true,
+    "metricStoragePath": "./logs/translation-metrics.json"
+  }
+}

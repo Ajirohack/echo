@@ -1,0 +1,416 @@
+{
+  "languages": {
+    "en": {
+      "name": "English",
+      "voices": {
+        "elevenlabs": {
+          "female": [
+            {
+              "id": "21m00Tcm4TlvDq8ikWAM",
+              "name": "Rachel",
+              "style": "neutral",
+              "quality": "premium"
+            },
+            {
+              "id": "XB0fDUnXU5powFXDhCwa",
+              "name": "Charlotte",
+              "style": "warm",
+              "quality": "premium"
+            }
+          ],
+          "male": [
+            {
+              "id": "GBv7mTt0atIp3Br8iCZE",
+              "name": "Thomas",
+              "style": "professional",
+              "quality": "premium"
+            },
+            {
+              "id": "onwK4e9ZLuTAKqWW03F9",
+              "name": "Ryan",
+              "style": "conversational",
+              "quality": "premium"
+            }
+          ]
+        },
+        "azure": {
+          "female": [
+            {
+              "id": "en-US-JennyNeural",
+              "name": "Jenny",
+              "style": "friendly",
+              "quality": "neural"
+            },
+            {
+              "id": "en-US-AriaNeural",
+              "name": "Aria",
+              "style": "professional",
+              "quality": "neural"
+            }
+          ],
+          "male": [
+            {
+              "id": "en-US-GuyNeural",
+              "name": "Guy",
+              "style": "professional",
+              "quality": "neural"
+            },
+            {
+              "id": "en-US-DavisNeural",
+              "name": "Davis",
+              "style": "casual",
+              "quality": "neural"
+            }
+          ]
+        },
+        "google": {
+          "female": [
+            {
+              "id": "en-US-Wavenet-F",
+              "name": "Wavenet F",
+              "style": "neutral",
+              "quality": "wavenet"
+            },
+            {
+              "id": "en-US-Neural2-F",
+              "name": "Neural2 F",
+              "style": "conversational",
+              "quality": "neural"
+            }
+          ],
+          "male": [
+            {
+              "id": "en-US-Wavenet-D",
+              "name": "Wavenet D",
+              "style": "neutral",
+              "quality": "wavenet"
+            },
+            {
+              "id": "en-US-Neural2-D",
+              "name": "Neural2 D",
+              "style": "conversational",
+              "quality": "neural"
+            }
+          ]
+        }
+      }
+    },
+    "es": {
+      "name": "Spanish",
+      "voices": {
+        "elevenlabs": {
+          "female": [
+            {
+              "id": "XrExE9yKIg1WjnnlVkGX",
+              "name": "Matilda",
+              "style": "friendly",
+              "quality": "premium"
+            }
+          ],
+          "male": [
+            {
+              "id": "S86HbGtYOEpfHL9toSYL",
+              "name": "Antonio",
+              "style": "conversational",
+              "quality": "premium"
+            }
+          ]
+        },
+        "azure": {
+          "female": [
+            {
+              "id": "es-ES-ElviraNeural",
+              "name": "Elvira",
+              "style": "friendly",
+              "quality": "neural"
+            },
+            {
+              "id": "es-MX-DaliaNeural",
+              "name": "Dalia",
+              "style": "conversational",
+              "quality": "neural"
+            }
+          ],
+          "male": [
+            {
+              "id": "es-ES-AlvaroNeural",
+              "name": "Alvaro",
+              "style": "professional",
+              "quality": "neural"
+            },
+            {
+              "id": "es-MX-JorgeNeural",
+              "name": "Jorge",
+              "style": "conversational",
+              "quality": "neural"
+            }
+          ]
+        },
+        "google": {
+          "female": [
+            {
+              "id": "es-ES-Wavenet-B",
+              "name": "Wavenet B",
+              "style": "neutral",
+              "quality": "wavenet"
+            }
+          ],
+          "male": [
+            {
+              "id": "es-ES-Wavenet-C",
+              "name": "Wavenet C",
+              "style": "neutral",
+              "quality": "wavenet"
+            }
+          ]
+        }
+      }
+    },
+    "fr": {
+      "name": "French",
+      "voices": {
+        "elevenlabs": {
+          "female": [
+            {
+              "id": "jsCqWAovK2LkecY7zXl4",
+              "name": "Louise",
+              "style": "friendly",
+              "quality": "premium"
+            }
+          ],
+          "male": [
+            {
+              "id": "uUmTPRm3eoXGSCLxo0kY",
+              "name": "Pierre",
+              "style": "conversational",
+              "quality": "premium"
+            }
+          ]
+        },
+        "azure": {
+          "female": [
+            {
+              "id": "fr-FR-DeniseNeural",
+              "name": "Denise",
+              "style": "friendly",
+              "quality": "neural"
+            }
+          ],
+          "male": [
+            {
+              "id": "fr-FR-HenriNeural",
+              "name": "Henri",
+              "style": "professional",
+              "quality": "neural"
+            }
+          ]
+        },
+        "google": {
+          "female": [
+            {
+              "id": "fr-FR-Wavenet-E",
+              "name": "Wavenet E",
+              "style": "neutral",
+              "quality": "wavenet"
+            }
+          ],
+          "male": [
+            {
+              "id": "fr-FR-Wavenet-D",
+              "name": "Wavenet D",
+              "style": "neutral",
+              "quality": "wavenet"
+            }
+          ]
+        }
+      }
+    },
+    "de": {
+      "name": "German",
+      "voices": {
+        "elevenlabs": {
+          "female": [
+            {
+              "id": "gQ54F3OCdQLfT6qJYGIH",
+              "name": "Hannah",
+              "style": "friendly",
+              "quality": "premium"
+            }
+          ],
+          "male": [
+            {
+              "id": "1vFuXZJHBkRlXoiZXP2h",
+              "name": "Klaus",
+              "style": "conversational",
+              "quality": "premium"
+            }
+          ]
+        },
+        "azure": {
+          "female": [
+            {
+              "id": "de-DE-KatjaNeural",
+              "name": "Katja",
+              "style": "friendly",
+              "quality": "neural"
+            }
+          ],
+          "male": [
+            {
+              "id": "de-DE-ConradNeural",
+              "name": "Conrad",
+              "style": "professional",
+              "quality": "neural"
+            }
+          ]
+        },
+        "google": {
+          "female": [
+            {
+              "id": "de-DE-Wavenet-F",
+              "name": "Wavenet F",
+              "style": "neutral",
+              "quality": "wavenet"
+            }
+          ],
+          "male": [
+            {
+              "id": "de-DE-Wavenet-B",
+              "name": "Wavenet B",
+              "style": "neutral",
+              "quality": "wavenet"
+            }
+          ]
+        }
+      }
+    },
+    "ja": {
+      "name": "Japanese",
+      "voices": {
+        "elevenlabs": {
+          "female": [
+            {
+              "id": "MYdZMYVh3JAPxIO9HnBY",
+              "name": "Yuki",
+              "style": "friendly",
+              "quality": "premium"
+            }
+          ],
+          "male": [
+            {
+              "id": "C7JwVQ7BK6l2lSyaXWSb",
+              "name": "Hiro",
+              "style": "conversational",
+              "quality": "premium"
+            }
+          ]
+        },
+        "azure": {
+          "female": [
+            {
+              "id": "ja-JP-NanamiNeural",
+              "name": "Nanami",
+              "style": "friendly",
+              "quality": "neural"
+            }
+          ],
+          "male": [
+            {
+              "id": "ja-JP-KeitaNeural",
+              "name": "Keita",
+              "style": "professional",
+              "quality": "neural"
+            }
+          ]
+        },
+        "google": {
+          "female": [
+            {
+              "id": "ja-JP-Wavenet-B",
+              "name": "Wavenet B",
+              "style": "neutral",
+              "quality": "wavenet"
+            }
+          ],
+          "male": [
+            {
+              "id": "ja-JP-Wavenet-D",
+              "name": "Wavenet D",
+              "style": "neutral",
+              "quality": "wavenet"
+            }
+          ]
+        }
+      }
+    },
+    "zh": {
+      "name": "Chinese",
+      "voices": {
+        "elevenlabs": {
+          "female": [
+            {
+              "id": "zhSQO5QtuiLXDB1UMyyd",
+              "name": "Mei",
+              "style": "friendly",
+              "quality": "premium"
+            }
+          ],
+          "male": [
+            {
+              "id": "qyTrOLnNQ5ZnaNwK5qe6",
+              "name": "Li",
+              "style": "conversational",
+              "quality": "premium"
+            }
+          ]
+        },
+        "azure": {
+          "female": [
+            {
+              "id": "zh-CN-XiaoxiaoNeural",
+              "name": "Xiaoxiao",
+              "style": "friendly",
+              "quality": "neural"
+            }
+          ],
+          "male": [
+            {
+              "id": "zh-CN-YunxiNeural",
+              "name": "Yunxi",
+              "style": "professional",
+              "quality": "neural"
+            }
+          ]
+        },
+        "google": {
+          "female": [
+            {
+              "id": "cmn-CN-Wavenet-A",
+              "name": "Wavenet A",
+              "style": "neutral",
+              "quality": "wavenet"
+            }
+          ],
+          "male": [
+            {
+              "id": "cmn-CN-Wavenet-D",
+              "name": "Wavenet D",
+              "style": "neutral",
+              "quality": "wavenet"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "defaultSelections": {
+    "provider": "elevenlabs",
+    "gender": "auto",
+    "voiceStyles": {
+      "default": "neutral",
+      "business": "professional",
+      "casual": "conversational",
+      "friendly": "warm"
+    }
+  }
+}

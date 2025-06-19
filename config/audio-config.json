@@ -1,0 +1,55 @@
+{
+  "audio": {
+    "sampleRate": 16000,
+    "channels": 1,
+    "bitDepth": 16,
+    "silenceThreshold": -50,
+    "silenceDuration": 0.5,
+    "normalizationTarget": -3,
+    "bufferSize": 4096,
+    "inputDevice": "",
+    "outputDevice": "",
+    "virtualDevice": "",
+    "autoStart": false,
+    "monitorInput": true,
+    "monitorOutput": true,
+    "enableNoiseReduction": true,
+    "enableEchoCancellation": true,
+    "enableAutomaticGainControl": true,
+    "volume": 80,
+    "muted": false,
+    "latency": 200,
+    "format": "wav",
+    "codec": "pcm_s16le"
+  },
+  "virtualAudio": {
+    "enabled": true,
+    "autoInstall": true,
+    "windows": {
+      "driverName": "VB-Cable",
+      "downloadUrl": "https://download.vb-audio.com/Download_CABLE/VBCABLE_Driver_Pack43.zip",
+      "installPath": "%LOCALAPPDATA%\\VB\\CABLE"
+    },
+    "macos": {
+      "driverName": "BlackHole",
+      "downloadUrl": "https://github.com/ExistentialAudio/BlackHole/releases/download/2.2.9/BlackHole.2.2.9.pkg",
+      "installPath": "/Library/Audio/Plug-Ins/HAL/BlackHole2ch.driver"
+    },
+    "linux": {
+      "driverName": "PulseAudio",
+      "installPath": "/usr/share/alsa/alsa.conf.d/50-pulseaudio.conf"
+    }
+  },
+  "advanced": {
+    "ffmpegPath": "",
+    "ffprobePath": "",
+    "enableDebugLogging": false,
+    "enablePerformanceMonitoring": true,
+    "maxBufferSize": 1048576,
+    "reconnectAttempts": 3,
+    "reconnectDelay": 1000,
+    "enableAudioProcessing": true,
+    "enableResampling": true,
+    "enableVolumeNormalization": true
+  }
+}

@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Universal Translator</title>
+
+    <!-- Favicon -->
+    <link rel="icon" href="assets/icons/favicon.ico" type="image/x-icon" />
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="styles.css" />
+
+    <!-- Fonts -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="logo-container">
+        <img
+          src="assets/icons/archivist_logo_transparent.png"
+          alt="Logo"
+          class="app-logo"
+        />
+        <h1>Universal Translator</h1>
+      </div>
+      <div class="control-buttons">
+        <button id="settingsButton" class="icon-button">
+          <span class="material-icons">settings</span>
+        </button>
+      </div>
+    </header>
+
+    <main class="app-container">
+      <section class="translation-section">
+        <div class="language-controls">
+          <div class="language-row">
+            <div class="language-selector">
+              <label for="sourceLang">From:</label>
+              <select id="sourceLang">
+                <option value="auto">Auto-Detect</option>
+                <option value="en">English</option>
+                <option value="es">Spanish</option>
+                <option value="fr">French</option>
+                <option value="de">German</option>
+                <option value="ja">Japanese</option>
+                <option value="zh">Chinese</option>
+              </select>
+            </div>
+
+            <button id="swapLanguages" class="swap-button">⇄</button>
+
+            <div class="language-selector">
+              <label for="targetLang">To:</label>
+              <select id="targetLang">
+                <option value="en">English</option>
+                <option value="es">Spanish</option>
+                <option value="fr">French</option>
+                <option value="de">German</option>
+                <option value="ja">Japanese</option>
+                <option value="zh">Chinese</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="status-container">
+          <div id="statusMessage" class="status-message">
+            Ready to translate
+          </div>
+          <div
+            id="recordingIndicator"
+            class="recording-indicator"
+            style="display: none"
+          >
+            <div class="recording-dot"></div>
+            <span>Recording...</span>
+          </div>
+        </div>
+
+        <div class="text-container">
+          <div class="text-column">
+            <div class="text-header">Original</div>
+            <div id="sourceText" class="text-display" contenteditable="true">
+              Speak or type text here...
+            </div>
+          </div>
+          <div class="text-column">
+            <div class="text-header">Translation</div>
+            <div id="translatedText" class="text-display">
+              Translation will appear here...
+            </div>
+          </div>
+        </div>
+
+        <div class="action-buttons">
+          <button id="recordButton" class="action-button record">
+            Start Recording
+          </button>
+          <button id="stopButton" class="action-button stop" disabled>
+            Stop Recording
+          </button>
+          <button id="playTranslation" class="action-button play">
+            Play Translation
+          </button>
+          <button id="translateButton" class="action-button translate">
+            Start Translation
+          </button>
+        </div>
+
+        <div id="translationMetrics" class="translation-metrics">
+          <div class="metrics-item">
+            <span class="metric-label">Latency:</span>
+            <span class="metric-value">0ms</span>
+          </div>
+          <div class="metrics-item">
+            <span class="metric-label">Translations:</span>
+            <span class="metric-value">0</span>
+          </div>
+          <div class="metrics-item">
+            <span class="metric-label">Success Rate:</span>
+            <span class="metric-value">100%</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="translation-history-section">
+        <h3>Translation History</h3>
+        <div id="translationDisplay" class="translation-display">
+          <div class="translation-placeholder">
+            Translations will appear here...
+          </div>
+        </div>
+        <div class="history-controls">
+          <button id="clearHistory" class="history-button clear">
+            Clear History
+          </button>
+          <button id="exportHistory" class="history-button export">
+            Export History
+          </button>
+        </div>
+      </section>
+    </main>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Settings</h2>
+          <span class="close-modal">&times;</span>
+        </div>
+        <div class="modal-body">
+          <div class="settings-section">
+            <h3>Audio Settings</h3>
+            <div class="setting-group">
+              <label for="inputDevice">Input Device:</label>
+              <select id="inputDevice"></select>
+            </div>
+            <div class="setting-group">
+              <label for="outputDevice">Output Device:</label>
+              <select id="outputDevice"></select>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <h3>Translation Settings</h3>
+            <div class="setting-group">
+              <label for="translationService">Primary Service:</label>
+              <select id="translationService">
+                <option value="deepl">DeepL</option>
+                <option value="gpt4o">GPT-4o</option>
+                <option value="google">Google Translate</option>
+                <option value="azure">Azure Translator</option>
+              </select>
+            </div>
+            <div class="setting-group">
+              <label for="googleApiKey">Google API Key:</label>
+              <input
+                type="password"
+                id="googleApiKey"
+                placeholder="Enter Google API Key"
+              />
+            </div>
+            <div class="setting-group">
+              <label for="deeplApiKey">DeepL API Key:</label>
+              <input
+                type="password"
+                id="deeplApiKey"
+                placeholder="Enter DeepL API Key"
+              />
+            </div>
+            <div class="setting-group">
+              <label for="azureKey">Azure Translator Key:</label>
+              <input
+                type="password"
+                id="azureKey"
+                placeholder="Enter Azure API Key"
+              />
+            </div>
+            <div class="setting-group">
+              <label for="azureRegion">Azure Region:</label>
+              <input
+                type="text"
+                id="azureRegion"
+                placeholder="e.g., eastus"
+                value="eastus"
+              />
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="saveSettings" class="action-button save">
+            Save Settings
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script src="renderer.js"></script>
+  </body>
+</html>

@@ -1,0 +1,347 @@
+{
+  "azure": {
+    "translate": {
+      "success": {
+        "en_to_es": [
+          {
+            "detectedLanguage": {
+              "language": "en",
+              "score": 0.95
+            },
+            "translations": [
+              {
+                "text": "Hola mundo",
+                "to": "es",
+                "alignment": {
+                  "proj": "0:4-0:3 6:10-5:9"
+                },
+                "sentLen": {
+                  "srcSentLen": [11],
+                  "transSentLen": [10]
+                }
+              }
+            ]
+          }
+        ],
+        "en_to_fr": [
+          {
+            "detectedLanguage": {
+              "language": "en",
+              "score": 0.94
+            },
+            "translations": [
+              {
+                "text": "Bonjour le monde",
+                "to": "fr"
+              }
+            ]
+          }
+        ],
+        "en_to_de": [
+          {
+            "detectedLanguage": {
+              "language": "en",
+              "score": 0.97
+            },
+            "translations": [
+              {
+                "text": "Hallo Welt",
+                "to": "de"
+              }
+            ]
+          }
+        ]
+      },
+      "error": {
+        "unauthorized": {
+          "error": {
+            "code": 401000,
+            "message": "The request is not authorized because credentials are missing or invalid."
+          }
+        },
+        "quota_exceeded": {
+          "error": {
+            "code": 403000,
+            "message": "The subscription has exceeded its quota."
+          }
+        }
+      }
+    },
+    "detect": {
+      "success": [
+        {
+          "language": "en",
+          "score": 0.95,
+          "isTranslationSupported": true,
+          "isTransliterationSupported": false
+        }
+      ],
+      "error": {
+        "bad_request": {
+          "error": {
+            "code": 400000,
+            "message": "One of the request inputs is not valid."
+          }
+        }
+      }
+    },
+    "languages": {
+      "success": {
+        "translation": {
+          "en": {
+            "name": "English",
+            "nativeName": "English",
+            "dir": "ltr"
+          },
+          "es": {
+            "name": "Spanish",
+            "nativeName": "Español",
+            "dir": "ltr"
+          },
+          "fr": {
+            "name": "French",
+            "nativeName": "Français",
+            "dir": "ltr"
+          },
+          "de": {
+            "name": "German",
+            "nativeName": "Deutsch",
+            "dir": "ltr"
+          },
+          "ja": {
+            "name": "Japanese",
+            "nativeName": "日本語",
+            "dir": "ltr"
+          }
+        }
+      }
+    }
+  },
+  "gpt4o": {
+    "chat": {
+      "success": {
+        "en_to_es": {
+          "id": "chatcmpl-abc123",
+          "object": "chat.completion",
+          "created": 1677858242,
+          "model": "gpt-4o",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "{\"translation\":\"Hola mundo\",\"confidence\":0.95,\"reasoning\":\"This is a standard greeting translation\",\"alternatives\":[\"Saludos mundo\"],\"formality\":\"neutral\",\"cultural_notes\":\"Standard greeting in Spanish\"}"
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 25,
+            "completion_tokens": 32,
+            "total_tokens": 57
+          }
+        },
+        "en_to_fr": {
+          "id": "chatcmpl-def456",
+          "object": "chat.completion",
+          "created": 1677858243,
+          "model": "gpt-4o",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "{\"translation\":\"Bonjour le monde\",\"confidence\":0.93,\"reasoning\":\"This is a standard greeting translation to French\",\"alternatives\":[\"Salut le monde\"],\"formality\":\"neutral\",\"cultural_notes\":\"Standard greeting in French\"}"
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 28,
+            "completion_tokens": 35,
+            "total_tokens": 63
+          }
+        }
+      },
+      "error": {
+        "rate_limit": {
+          "error": {
+            "message": "Rate limit exceeded, please try again later.",
+            "type": "rate_limit_error",
+            "param": null,
+            "code": "rate_limit_exceeded"
+          }
+        },
+        "invalid_key": {
+          "error": {
+            "message": "Incorrect API key provided",
+            "type": "invalid_request_error",
+            "param": null,
+            "code": "invalid_api_key"
+          }
+        }
+      }
+    }
+  },
+  "deepl": {
+    "translate": {
+      "success": {
+        "en_to_es": {
+          "translations": [
+            {
+              "detected_source_language": "EN",
+              "text": "Hola mundo"
+            }
+          ]
+        },
+        "en_to_fr": {
+          "translations": [
+            {
+              "detected_source_language": "EN",
+              "text": "Bonjour le monde"
+            }
+          ]
+        },
+        "en_to_de": {
+          "translations": [
+            {
+              "detected_source_language": "EN",
+              "text": "Hallo Welt"
+            }
+          ]
+        }
+      },
+      "error": {
+        "quota_exceeded": {
+          "message": "Quota exceeded."
+        },
+        "auth_failure": {
+          "message": "Authorization failed. Please supply a valid auth_key parameter."
+        }
+      }
+    },
+    "languages": {
+      "success": [
+        {
+          "language": "EN",
+          "name": "English"
+        },
+        {
+          "language": "DE",
+          "name": "German"
+        },
+        {
+          "language": "FR",
+          "name": "French"
+        },
+        {
+          "language": "ES",
+          "name": "Spanish"
+        },
+        {
+          "language": "JA",
+          "name": "Japanese"
+        }
+      ]
+    }
+  },
+  "google": {
+    "translate": {
+      "success": {
+        "en_to_es": {
+          "data": {
+            "translations": [
+              {
+                "translatedText": "Hola mundo",
+                "detectedSourceLanguage": "en",
+                "model": "nmt"
+              }
+            ]
+          }
+        },
+        "en_to_fr": {
+          "data": {
+            "translations": [
+              {
+                "translatedText": "Bonjour le monde",
+                "detectedSourceLanguage": "en",
+                "model": "nmt"
+              }
+            ]
+          }
+        },
+        "en_to_de": {
+          "data": {
+            "translations": [
+              {
+                "translatedText": "Hallo Welt",
+                "detectedSourceLanguage": "en",
+                "model": "nmt"
+              }
+            ]
+          }
+        }
+      },
+      "error": {
+        "invalid_key": {
+          "error": {
+            "code": 403,
+            "message": "The API key is invalid.",
+            "status": "PERMISSION_DENIED"
+          }
+        },
+        "quota_exceeded": {
+          "error": {
+            "code": 429,
+            "message": "Quota exceeded for the API key.",
+            "status": "RESOURCE_EXHAUSTED"
+          }
+        }
+      }
+    },
+    "detect": {
+      "success": {
+        "data": {
+          "detections": [
+            [
+              {
+                "language": "en",
+                "isReliable": true,
+                "confidence": 0.98,
+                "input": "Hello world"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "languages": {
+      "success": {
+        "data": {
+          "languages": [
+            {
+              "language": "en",
+              "name": "English"
+            },
+            {
+              "language": "es",
+              "name": "Spanish"
+            },
+            {
+              "language": "fr",
+              "name": "French"
+            },
+            {
+              "language": "de",
+              "name": "German"
+            },
+            {
+              "language": "ja",
+              "name": "Japanese"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

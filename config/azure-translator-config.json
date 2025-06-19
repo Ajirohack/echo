@@ -1,0 +1,33 @@
+{
+  "subscriptionKey": "YOUR_AZURE_TRANSLATOR_KEY",
+  "endpoint": "https://api.cognitive.microsofttranslator.com/",
+  "location": "global",
+  "timeout": 5000,
+  "maxRetries": 3,
+  "defaultCategory": "general",
+  "allowFallbackToGeneralDomain": true,
+  "includeSentenceLength": true,
+  "includeAlignment": false,
+  "includeProfanityAction": "marked",
+  "suggestedFrom": "",
+  "profanityMarker": "asterisk",
+  "enableLogging": true,
+  "logLevel": "info",
+  "apiVersion": "3.0",
+  "enableDocumentTranslation": false,
+  "documentTranslationEndpoint": "https://api.cognitive.microsoft.com/translator/document/v1.0",
+  "documentTranslationPollingInterval": 5000,
+  "customTranslatorEndpoint": "https://api.cognitive.microsofttranslator.com/customtranslator/v1.0",
+  "useCustomTranslator": false,
+  "customTranslatorCategoryId": "",
+  "batchSize": 100,
+  "maxTextLength": 5000,
+  "textType": "plain",
+  "healthCheck": {
+    "enabled": true,
+    "interval": 300000,
+    "timeoutThreshold": 10000,
+    "errorThreshold": 3,
+    "recoveryInterval": 60000
+  }
+}

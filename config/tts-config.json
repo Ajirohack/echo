@@ -1,0 +1,53 @@
+{
+  "enabled": true,
+  "defaultProvider": "elevenlabs",
+  "providers": {
+    "elevenlabs": {
+      "enabled": true,
+      "apiKey": "YOUR_ELEVENLABS_API_KEY",
+      "model": "eleven_multilingual_v2",
+      "stability": 0.5,
+      "clarity": 0.75,
+      "useStreamingApi": true,
+      "rateLimit": 100000
+    },
+    "azure": {
+      "enabled": true,
+      "apiKey": "YOUR_AZURE_API_KEY",
+      "region": "eastus",
+      "useNeuralVoices": true,
+      "outputFormat": "audio-16khz-32kbitrate-mono-mp3"
+    },
+    "google": {
+      "enabled": true,
+      "apiKey": "YOUR_GOOGLE_API_KEY",
+      "useWavenet": true,
+      "audioEncoding": "MP3"
+    }
+  },
+  "output": {
+    "routing": {
+      "useVirtualDevice": true,
+      "deviceName": "VirtualCable",
+      "useSystemSpeaker": true
+    },
+    "format": {
+      "sampleRate": 24000,
+      "channels": 1,
+      "bitDepth": 16
+    }
+  },
+  "voicePreferences": {
+    "defaultVoiceGender": "auto",
+    "speakingRate": 1.0,
+    "pitch": 0,
+    "volume": 1.0,
+    "emotion": "neutral"
+  },
+  "performance": {
+    "caching": true,
+    "maxCacheSize": 200,
+    "maxConcurrentRequests": 5,
+    "preloadCommonPhrases": false
+  }
+}

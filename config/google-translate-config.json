@@ -1,0 +1,33 @@
+{
+  "projectId": "YOUR_GOOGLE_CLOUD_PROJECT_ID",
+  "keyFilename": "path/to/your-google-credentials.json",
+  "apiEndpoint": "translate.googleapis.com",
+  "timeout": 6000,
+  "maxRetries": 3,
+  "enableLogging": true,
+  "logLevel": "info",
+  "cacheEnabled": true,
+  "cacheTTL": 3600,
+  "batchSize": 100,
+  "maxTextLength": 5000,
+  "location": "global",
+  "languageDetection": {
+    "enabled": true,
+    "minConfidence": 0.6
+  },
+  "glossaryConfig": {
+    "enabled": false,
+    "glossaryId": ""
+  },
+  "adaptiveTranslation": {
+    "enabled": false,
+    "modelId": ""
+  },
+  "preferredLanguagePairs": {
+    "en-es": "custom",
+    "en-fr": "neural",
+    "en-ja": "neural"
+  },
+  "defaultModel": "nmt",
+  "fallbackToPhrase": true
+}

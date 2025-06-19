@@ -1,0 +1,66 @@
+{
+  "translationServices": {
+    "google": {
+      "name": "Google Cloud Translation",
+      "apiKey": "",
+      "enabled": true,
+      "defaultSourceLang": "auto",
+      "defaultTargetLang": "en"
+    },
+    "deepl": {
+      "name": "DeepL",
+      "apiKey": "",
+      "enabled": false,
+      "apiUrl": "https://api-free.deepl.com/v2/translate"
+    },
+    "azure": {
+      "name": "Microsoft Azure",
+      "key": "",
+      "region": "",
+      "enabled": false
+    }
+  },
+  "speechServices": {
+    "google": {
+      "name": "Google Cloud Speech-to-Text",
+      "apiKey": "",
+      "enabled": true
+    },
+    "azure": {
+      "name": "Microsoft Azure Speech Services",
+      "key": "",
+      "region": "",
+      "enabled": false
+    },
+    "whisper": {
+      "name": "OpenAI Whisper",
+      "apiKey": "",
+      "enabled": false
+    }
+  },
+  "ttsServices": {
+    "google": {
+      "name": "Google Cloud Text-to-Speech",
+      "apiKey": "",
+      "enabled": true,
+      "voice": {
+        "languageCode": "en-US",
+        "name": "en-US-Wavenet-D",
+        "ssmlGender": "MALE"
+      }
+    },
+    "elevenlabs": {
+      "name": "ElevenLabs",
+      "apiKey": "",
+      "enabled": false,
+      "voiceId": ""
+    },
+    "azure": {
+      "name": "Microsoft Azure Text-to-Speech",
+      "key": "",
+      "region": "",
+      "enabled": false,
+      "voiceName": "en-US-JennyNeural"
+    }
+  }
+}

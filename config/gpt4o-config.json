@@ -1,0 +1,29 @@
+{
+  "apiKey": "YOUR_OPENAI_API_KEY",
+  "model": "gpt-4o",
+  "endpoint": "https://api.openai.com/v1/chat/completions",
+  "maxTokens": 2048,
+  "temperature": 0.3,
+  "topP": 0.9,
+  "timeout": 10000,
+  "maxRetries": 3,
+  "contextWindow": 16000,
+  "systemPrompt": "You are a professional translator. Translate the following text from {sourceLanguage} to {targetLanguage}. Maintain the original meaning, tone, and nuance. Consider cultural context and adapt idioms and expressions appropriately.",
+  "formalityLevels": {
+    "informal": "Use an informal, conversational tone for the translation.",
+    "neutral": "Use a neutral tone that works in most contexts.",
+    "formal": "Use formal language appropriate for professional or official contexts."
+  },
+  "domainSpecificPrompts": {
+    "business": "This is business content. Ensure appropriate professional terminology and formal language.",
+    "technical": "This is technical content. Maintain precise technical terminology and clarity.",
+    "medical": "This is medical content. Use accurate medical terminology and maintain clinical precision.",
+    "legal": "This is legal content. Preserve legal terminology and formal structure precisely.",
+    "casual": "This is casual conversation. Maintain a natural, conversational tone."
+  },
+  "streamingEnabled": true,
+  "enableContextualTranslation": true,
+  "contextHistorySize": 10,
+  "enableLogging": true,
+  "logLevel": "info"
+}

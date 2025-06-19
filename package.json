@@ -21,10 +21,10 @@
     "test:translation": "mocha --require tests/test-helper.js 'tests/unit/services/translation/**/*.test.js' --timeout 10000 --exit",
     "test:stt": "mocha --require tests/test-helper.js 'tests/unit/services/stt/**/*.test.js' --timeout 10000 --exit",
     "test:tts": "mocha --require tests/test-helper.js 'tests/unit/services/tts/**/*.test.js' --timeout 10000 --exit",
-    "test:lint": "eslint tests/ --ext .js",
+    "test:lint": "eslint tests/",
     "test:translation-mock": "cross-env USE_MOCKS=true mocha tests/test-translation-mock.js --timeout 10000 --exit",
     "test:translation-real": "mocha tests/test-translation.js --timeout 15000 --exit",
-    "lint": "eslint src/**/*.{js,jsx,ts,tsx} --fix",
+    "lint": "eslint src/ --fix",
     "prepare": "husky install",
     "package-mac": "electron-builder --mac",
     "package-win": "electron-builder --win",
@@ -65,8 +65,8 @@
     "openai": "^4.28.0",
     "p-limit": "^4.0.0",
     "play-sound": "^1.1.6",
-    "react": "^17.0.2",
-    "react-dom": "^17.0.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "react-router-dom": "^6.30.1",
     "recoil": "^0.7.7",
     "ssml-builder": "^0.4.3",
@@ -111,7 +111,8 @@
     "sinon-chai": "^3.7.0",
     "source-map": "^0.7.4",
     "ts-node": "^10.9.1",
-    "typescript": "^5.1.6"
+    "typescript": "^5.1.6",
+    "typescript-eslint": "^8.34.1"
   },
   "nyc": {
     "include": [

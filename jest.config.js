@@ -32,11 +32,13 @@ module.exports = {
     '<rootDir>/src/__tests__/**/*.test.jsx'
   ],
   transform: {
-    '^.+\\.(js|jsx|ts|tsx)$': 'babel-jest',
+    // Include mjs/cjs for ESM packages
+    '^.+\\.(mjs|cjs|js|jsx|ts|tsx)$': 'babel-jest',
   },
   moduleFileExtensions: ['js', 'jsx', 'json', 'node'],
   transformIgnorePatterns: [
-    '[/\\\\]node_modules[/\\\\].+\\.(js|jsx|ts|tsx)$',
+    // Allow transforming specific ESM packages in node_modules if needed
+    'node_modules/(?!(openai|elevenlabs|undici|node-fetch|whatwg-url)/)',
     '^.+\\.module\\.(css|sass|scss)$',
   ],
   resetMocks: true,

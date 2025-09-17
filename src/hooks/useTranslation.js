@@ -16,8 +16,7 @@ const useTranslation = () => {
     // Simple implementation - in a real app, this would use i18n or similar
     if (params && Object.keys(params).length > 0) {
       return Object.entries(params).reduce(
-        (result, [param, value]) => 
-          result.replace(`{{${param}}}`, value),
+        (result, [param, value]) => result.replace(`{{${param}}}`, value),
         key
       );
     }

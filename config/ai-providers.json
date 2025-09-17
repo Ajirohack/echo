@@ -1,0 +1,39 @@
+{
+  "ollama": {
+    "enabled": true,
+    "baseUrl": "http://localhost:11434",
+    "defaultModel": "llama2",
+    "dockerMode": false,
+    "dockerImage": "ollama/ollama",
+    "dockerPort": 11434,
+    "timeout": 30000,
+    "maxRetries": 3
+  },
+  "openrouter": {
+    "enabled": false,
+    "apiKey": "",
+    "defaultModel": "openai/gpt-3.5-turbo",
+    "appName": "Translation App",
+    "appUrl": "https://github.com/translation-app",
+    "timeout": 30000,
+    "maxRetries": 3
+  },
+  "groq": {
+    "enabled": false,
+    "apiKey": "",
+    "defaultModel": "mixtral-8x7b-32768",
+    "timeout": 30000,
+    "maxRetries": 3
+  },
+  "huggingface": {
+    "enabled": false,
+    "apiKey": "",
+    "defaultModel": "google/gemma-7b-it",
+    "timeout": 30000,
+    "maxRetries": 3
+  },
+  "defaultProvider": "ollama",
+  "fallbackProvider": "huggingface",
+  "autoSwitch": true,
+  "healthCheckInterval": 30000
+} 

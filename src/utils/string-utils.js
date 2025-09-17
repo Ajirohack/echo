@@ -38,5 +38,5 @@ function safeJsonParse(jsonString, defaultValue = {}) {
 module.exports = {
   capitalize,
   truncate,
-  safeJsonParse
+  safeJsonParse,
 };

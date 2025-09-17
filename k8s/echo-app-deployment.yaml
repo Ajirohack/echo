@@ -1,0 +1,211 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echo-app
+  namespace: echo
+  labels:
+    app: echo-app
+    version: v1
+    component: backend
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: echo-app
+  template:
+    metadata:
+      labels:
+        app: echo-app
+        version: v1
+        component: backend
+      annotations:
+        prometheus.io/scrape: 'true'
+        prometheus.io/port: '9000'
+        prometheus.io/path: '/metrics'
+    spec:
+      serviceAccountName: echo-app
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
+      containers:
+        - name: echo-app
+          image: echo/echo-app:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+            - name: websocket
+              containerPort: 8080
+              protocol: TCP
+            - name: metrics
+              containerPort: 9000
+              protocol: TCP
+          env:
+            - name: NODE_ENV
+              value: 'production'
+            - name: PORT
+              value: '3000'
+            - name: WEBSOCKET_PORT
+              value: '8080'
+            - name: METRICS_PORT
+              value: '9000'
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: echo-secrets
+                  key: redis-url
+            - name: POSTGRES_URL
+              valueFrom:
+                secretKeyRef:
+                  name: echo-secrets
+                  key: postgres-url
+            - name: ELASTICSEARCH_URL
+              valueFrom:
+                secretKeyRef:
+                  name: echo-secrets
+                  key: elasticsearch-url
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: echo-secrets
+                  key: jwt-secret
+            - name: AUDIO_STORAGE_PATH
+              value: '/app/audio'
+            - name: LOG_LEVEL
+              value: 'info'
+            - name: ENABLE_METRICS
+              value: 'true'
+            - name: CLUSTER_MODE
+              value: 'true'
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          resources:
+            requests:
+              memory: '512Mi'
+              cpu: '250m'
+            limits:
+              memory: '1Gi'
+              cpu: '500m'
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
+          volumeMounts:
+            - name: audio-storage
+              mountPath: /app/audio
+            - name: temp-storage
+              mountPath: /app/temp
+            - name: logs
+              mountPath: /app/logs
+            - name: config
+              mountPath: /app/config/production.json
+              subPath: production.json
+              readOnly: true
+      volumes:
+        - name: audio-storage
+          persistentVolumeClaim:
+            claimName: echo-audio-pvc
+        - name: temp-storage
+          emptyDir:
+            sizeLimit: 1Gi
+        - name: logs
+          emptyDir:
+            sizeLimit: 500Mi
+        - name: config
+          configMap:
+            name: echo-config
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - echo-app
+                topologyKey: kubernetes.io/hostname
+      tolerations:
+        - key: 'echo.io/dedicated'
+          operator: 'Equal'
+          value: 'app'
+          effect: 'NoSchedule'
+      nodeSelector:
+        echo.io/node-type: 'app'
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: echo-app-service
+  namespace: echo
+  labels:
+    app: echo-app
+    component: backend
+  annotations:
+    prometheus.io/scrape: 'true'
+    prometheus.io/port: '9000'
+    prometheus.io/path: '/metrics'
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http
+      protocol: TCP
+    - name: websocket
+      port: 8080
+      targetPort: websocket
+      protocol: TCP
+    - name: metrics
+      port: 9000
+      targetPort: metrics
+      protocol: TCP
+  selector:
+    app: echo-app
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: echo-app
+  namespace: echo
+  labels:
+    app: echo-app
+    component: backend

@@ -10,18 +10,124 @@ class GoogleSTT extends BaseSTTService {
     super({
       name: 'google',
       supportedLanguages: [
-        'af-ZA', 'am-ET', 'hy-AM', 'az-AZ', 'id-ID', 'ms-MY', 'bn-BD', 'bn-IN', 'ca-ES', 'cs-CZ',
-        'da-DK', 'de-DE', 'en-AU', 'en-CA', 'en-GH', 'en-GB', 'en-IN', 'en-IE', 'en-KE', 'en-NZ',
-        'en-NG', 'en-PH', 'en-ZA', 'en-TZ', 'en-US', 'es-AR', 'es-BO', 'es-CL', 'es-CO', 'es-CR',
-        'es-EC', 'es-SV', 'es-ES', 'es-US', 'es-GT', 'es-HN', 'es-MX', 'es-NI', 'es-PA', 'es-PY',
-        'es-PE', 'es-PR', 'es-DO', 'es-UY', 'es-VE', 'eu-ES', 'fil-PH', 'fr-CA', 'fr-FR', 'gl-ES',
-        'ka-GE', 'gu-IN', 'hr-HR', 'zu-ZA', 'is-IS', 'it-IT', 'jv-ID', 'kn-IN', 'km-KH', 'lo-LA',
-        'lv-LV', 'lt-LT', 'hu-HU', 'ml-IN', 'mr-IN', 'nl-NL', 'ne-NP', 'nb-NO', 'pl-PL', 'pt-BR',
-        'pt-PT', 'ro-RO', 'si-LK', 'sk-SK', 'sl-SI', 'su-ID', 'sw-TZ', 'sw-KE', 'fi-FI', 'sv-SE',
-        'ta-IN', 'ta-SG', 'ta-LK', 'ta-MY', 'te-IN', 'vi-VN', 'tr-TR', 'ur-PK', 'ur-IN', 'el-GR',
-        'bg-BG', 'ru-RU', 'sr-RS', 'uk-UA', 'he-IL', 'ar-IL', 'ar-JO', 'ar-AE', 'ar-BH', 'ar-DZ',
-        'ar-SA', 'ar-KW', 'ar-MA', 'ar-TN', 'ar-OM', 'ar-PS', 'ar-QA', 'ar-LB', 'ar-EG', 'fa-IR',
-        'hi-IN', 'th-TH', 'ko-KR', 'cmn-Hans-CN', 'cmn-Hans-HK', 'cmn-Hant-TW', 'yue-Hant-HK', 'ja-JP'
+        'af-ZA',
+        'am-ET',
+        'hy-AM',
+        'az-AZ',
+        'id-ID',
+        'ms-MY',
+        'bn-BD',
+        'bn-IN',
+        'ca-ES',
+        'cs-CZ',
+        'da-DK',
+        'de-DE',
+        'en-AU',
+        'en-CA',
+        'en-GH',
+        'en-GB',
+        'en-IN',
+        'en-IE',
+        'en-KE',
+        'en-NZ',
+        'en-NG',
+        'en-PH',
+        'en-ZA',
+        'en-TZ',
+        'en-US',
+        'es-AR',
+        'es-BO',
+        'es-CL',
+        'es-CO',
+        'es-CR',
+        'es-EC',
+        'es-SV',
+        'es-ES',
+        'es-US',
+        'es-GT',
+        'es-HN',
+        'es-MX',
+        'es-NI',
+        'es-PA',
+        'es-PY',
+        'es-PE',
+        'es-PR',
+        'es-DO',
+        'es-UY',
+        'es-VE',
+        'eu-ES',
+        'fil-PH',
+        'fr-CA',
+        'fr-FR',
+        'gl-ES',
+        'ka-GE',
+        'gu-IN',
+        'hr-HR',
+        'zu-ZA',
+        'is-IS',
+        'it-IT',
+        'jv-ID',
+        'kn-IN',
+        'km-KH',
+        'lo-LA',
+        'lv-LV',
+        'lt-LT',
+        'hu-HU',
+        'ml-IN',
+        'mr-IN',
+        'nl-NL',
+        'ne-NP',
+        'nb-NO',
+        'pl-PL',
+        'pt-BR',
+        'pt-PT',
+        'ro-RO',
+        'si-LK',
+        'sk-SK',
+        'sl-SI',
+        'su-ID',
+        'sw-TZ',
+        'sw-KE',
+        'fi-FI',
+        'sv-SE',
+        'ta-IN',
+        'ta-SG',
+        'ta-LK',
+        'ta-MY',
+        'te-IN',
+        'vi-VN',
+        'tr-TR',
+        'ur-PK',
+        'ur-IN',
+        'el-GR',
+        'bg-BG',
+        'ru-RU',
+        'sr-RS',
+        'uk-UA',
+        'he-IL',
+        'ar-IL',
+        'ar-JO',
+        'ar-AE',
+        'ar-BH',
+        'ar-DZ',
+        'ar-SA',
+        'ar-KW',
+        'ar-MA',
+        'ar-TN',
+        'ar-OM',
+        'ar-PS',
+        'ar-QA',
+        'ar-LB',
+        'ar-EG',
+        'fa-IR',
+        'hi-IN',
+        'th-TH',
+        'ko-KR',
+        'cmn-Hans-CN',
+        'cmn-Hans-HK',
+        'cmn-Hant-TW',
+        'yue-Hant-HK',
+        'ja-JP',
       ],
       requiresApiKey: true,
       languageCode: 'en-US',
@@ -31,7 +137,7 @@ class GoogleSTT extends BaseSTTService {
       enableAutomaticPunctuation: true,
       model: 'default',
       useEnhanced: true,
-      ...config
+      ...config,
     });
 
     this.client = null;
@@ -42,20 +148,26 @@ class GoogleSTT extends BaseSTTService {
       // Create a client with the provided credentials
       const credentials = this.config.credentials || {
         keyFilename: this.config.keyFilename,
-        projectId: this.config.projectId
+        projectId: this.config.projectId,
       };
 
-      if (!credentials.keyFilename && !credentials.projectId && !process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-        throw new Error('Google Cloud credentials are required. Set GOOGLE_APPLICATION_CREDENTIALS or provide credentials in config.');
+      if (
+        !credentials.keyFilename &&
+        !credentials.projectId &&
+        !process.env.GOOGLE_APPLICATION_CREDENTIALS
+      ) {
+        throw new Error(
+          'Google Cloud credentials are required. Set GOOGLE_APPLICATION_CREDENTIALS or provide credentials in config.'
+        );
       }
 
       this.client = new speech.SpeechClient(credentials);
-      
+
       // Test the connection with a simple request
       await this.client.listRecognizers({
-        parent: `projects/${this.client.projectId}/locations/global`
+        parent: `projects/${this.client.projectId}/locations/global`,
       });
-      
+
       logger.info('Google Cloud Speech-to-Text client initialized successfully');
       return true;
     } catch (error) {
@@ -73,7 +185,7 @@ class GoogleSTT extends BaseSTTService {
       enableAutomaticPunctuation = this.config.enableAutomaticPunctuation,
       model = this.config.model,
       useEnhanced = this.config.useEnhanced,
-      requestId = uuidv4()
+      requestId = uuidv4(),
     } = options;
 
     try {
@@ -106,17 +218,17 @@ class GoogleSTT extends BaseSTTService {
             interactionType: 'DICTATION',
             microphoneDistance: 'NEARFIELD',
             recordingDeviceType: 'SMARTPHONE',
-            recordingDeviceName: 'Universal Translator',
-            industryNaicsCodeOfAudio: 512290 // Software publishing
-          }
+            recordingDeviceName: 'echo',
+            industryNaicsCodeOfAudio: 512290, // Software publishing
+          },
         },
       };
 
       logger.debug(`Sending request to Google Cloud Speech-to-Text (${requestId})`);
-      
+
       // Detect the operation type (long-running or streaming)
       const isLongRunning = audioContent.length > 60000; // 1 minute threshold
-      
+
       let response;
       if (isLongRunning) {
         // For long audio, use long-running recognition
@@ -132,7 +244,7 @@ class GoogleSTT extends BaseSTTService {
       return this._processResponse(response, {
         languageCode,
         requestId,
-        isLongRunning
+        isLongRunning,
       });
     } catch (error) {
       logger.error('Google Cloud Speech-to-Text error:', error);
@@ -143,7 +255,7 @@ class GoogleSTT extends BaseSTTService {
   async _startStreaming(audioStream, options = {}) {
     const { onData, onError, onEnd } = options;
     const streamId = options.streamId || uuidv4();
-    
+
     try {
       // Configure the streaming request
       const request = {
@@ -160,12 +272,12 @@ class GoogleSTT extends BaseSTTService {
             interactionType: 'DICTATION',
             microphoneDistance: 'NEARFIELD',
             recordingDeviceType: 'SMARTPHONE',
-            recordingDeviceName: 'Universal Translator',
-            industryNaicsCodeOfAudio: 512290 // Software publishing
-          }
+            recordingDeviceName: 'echo',
+            industryNaicsCodeOfAudio: 512290, // Software publishing
+          },
         },
         interimResults: true, // Get interim results
-        singleUtterance: false
+        singleUtterance: false,
       };
 
       // Create a recognize stream
@@ -196,7 +308,7 @@ class GoogleSTT extends BaseSTTService {
               language: languageCode,
               service: 'google',
               requestId: options.requestId,
-              raw: data
+              raw: data,
             });
           }
 
@@ -211,7 +323,7 @@ class GoogleSTT extends BaseSTTService {
 
       // Pipe the audio stream to the recognizer
       audioStream.pipe(recognizeStream);
-      
+
       // Handle stream end
       audioStream.on('end', () => {
         logger.debug('Audio stream ended, finishing recognition');
@@ -255,7 +367,7 @@ class GoogleSTT extends BaseSTTService {
 
   _processResponse(response, options = {}) {
     const { languageCode, requestId, isLongRunning = false } = options;
-    
+
     // Handle empty response
     if (!response || !response.results || response.results.length === 0) {
       return {
@@ -267,13 +379,13 @@ class GoogleSTT extends BaseSTTService {
         requestId,
         segments: [],
         duration: 0,
-        raw: response
+        raw: response,
       };
     }
 
     // Combine all results
     const fullText = response.results
-      .map(result => result.alternatives[0].transcript)
+      .map((result) => result.alternatives[0].transcript)
       .join(' ')
       .trim();
 
@@ -281,9 +393,8 @@ class GoogleSTT extends BaseSTTService {
     const totalConfidence = response.results.reduce((sum, result) => {
       return sum + (result.alternatives[0].confidence || 0);
     }, 0);
-    const averageConfidence = response.results.length > 0 
-      ? totalConfidence / response.results.length 
-      : 0;
+    const averageConfidence =
+      response.results.length > 0 ? totalConfidence / response.results.length : 0;
 
     // Extract word-level timestamps and confidence
     const segments = [];
@@ -294,7 +405,7 @@ class GoogleSTT extends BaseSTTService {
 
     response.results.forEach((result, resultIndex) => {
       const alternatives = result.alternatives[0];
-      
+
       if (!alternatives || !alternatives.words || alternatives.words.length === 0) {
         return;
       }
@@ -312,7 +423,7 @@ class GoogleSTT extends BaseSTTService {
           word,
           startTime,
           endTime,
-          confidence
+          confidence,
         });
 
         // Update current end time
@@ -323,10 +434,11 @@ class GoogleSTT extends BaseSTTService {
       if (result.isFinal || resultIndex === response.results.length - 1) {
         if (currentSegment) {
           // Calculate segment confidence
-          const segmentConfidence = currentWords.length > 0
-            ? currentWords.reduce((sum, w) => sum + w.confidence, 0) / currentWords.length
-            : 0;
-          
+          const segmentConfidence =
+            currentWords.length > 0
+              ? currentWords.reduce((sum, w) => sum + w.confidence, 0) / currentWords.length
+              : 0;
+
           // Add the segment
           segments.push({
             text: currentSegment,
@@ -335,9 +447,9 @@ class GoogleSTT extends BaseSTTService {
             duration: currentEndTime - currentStartTime,
             confidence: segmentConfidence,
             words: [...currentWords],
-            isFinal: result.isFinal
+            isFinal: result.isFinal,
           });
-          
+
           // Reset for next segment
           currentSegment = '';
           currentStartTime = currentEndTime;
@@ -356,13 +468,13 @@ class GoogleSTT extends BaseSTTService {
       segments,
       duration: segments.length > 0 ? segments[segments.length - 1].endTime : 0,
       isLongRunning,
-      raw: response
+      raw: response,
     };
   }
 
   _parseDuration(duration) {
     if (!duration) return 0;
-    
+
     // Parse duration string (e.g., "3.5s", "500ms")
     if (typeof duration === 'string') {
       if (duration.endsWith('s')) {
@@ -376,21 +488,24 @@ class GoogleSTT extends BaseSTTService {
       }
       return parseFloat(duration) || 0;
     }
-    
+
     // If it's an object with seconds/nanos (from gRPC)
-    if (typeof duration === 'object' && (duration.seconds !== undefined || duration.nanos !== undefined)) {
+    if (
+      typeof duration === 'object' &&
+      (duration.seconds !== undefined || duration.nanos !== undefined)
+    ) {
       const seconds = Number(duration.seconds) || 0;
       const nanos = Number(duration.nanos) || 0;
-      return seconds + (nanos / 1000000000);
+      return seconds + nanos / 1000000000;
     }
-    
+
     // If it's already a number, assume it's in seconds
     return Number(duration) || 0;
   }
 
   async destroy() {
     await super.destroy();
-    
+
     // Close the client if it exists
     if (this.client) {
       try {

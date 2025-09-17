@@ -1,0 +1,129 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: echo-app
+  annotations:
+    config.kubernetes.io/local-config: 'true'
+
+# Base resources
+resources:
+  - namespace.yaml
+  - rbac.yaml
+  - postgres-deployment.yaml
+  - redis-deployment.yaml
+  - elasticsearch-deployment.yaml
+  - echo-app-deployment.yaml
+  - nginx-deployment.yaml
+  - monitoring-deployment.yaml
+  - ingress.yaml
+  - hpa.yaml
+
+# Common labels applied to all resources
+commonLabels:
+  app.kubernetes.io/name: echo
+  app.kubernetes.io/version: '1.0.0'
+  app.kubernetes.io/component: application
+  app.kubernetes.io/part-of: echo-platform
+  app.kubernetes.io/managed-by: kustomize
+
+# Common annotations
+commonAnnotations:
+  deployment.kubernetes.io/revision: '1'
+  config.kubernetes.io/origin: |
+    path: k8s/kustomization.yaml
+
+# Namespace for all resources
+namespace: echo
+
+# Name prefix for all resources
+namePrefix: ''
+
+# Name suffix for all resources
+nameSuffix: ''
+
+# Images to be used
+images:
+  - name: echo-app
+    newTag: latest
+  - name: postgres
+    newTag: '15-alpine'
+  - name: redis
+    newTag: '7-alpine'
+  - name: elasticsearch
+    newTag: '8.11.0'
+  - name: nginx
+    newTag: '1.25-alpine'
+  - name: prometheus
+    newTag: 'v2.45.0'
+  - name: grafana
+    newTag: '10.2.0'
+
+# ConfigMap generator
+configMapGenerator:
+  - name: echo-build-info
+    literals:
+      - BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+      - BUILD_VERSION=1.0.0
+      - GIT_COMMIT=unknown
+      - ENVIRONMENT=production
+
+# Secret generator (for non-sensitive defaults)
+secretGenerator:
+  - name: echo-default-config
+    literals:
+      - LOG_LEVEL=info
+      - DEBUG_MODE=false
+    type: Opaque
+
+# Patches for different environments
+patchesStrategicMerge: []
+
+# JSON patches
+patches:
+  # Add resource limits to all containers
+  - target:
+      kind: Deployment
+      labelSelector: 'app.kubernetes.io/part-of=echo-platform'
+    patch: |
+      - op: add
+        path: /spec/template/metadata/annotations/prometheus.io~1scrape
+        value: "true"
+      - op: add
+        path: /spec/template/metadata/annotations/prometheus.io~1port
+        value: "8080"
+
+# Replacements for cross-cutting fields
+replacements:
+  - source:
+      kind: ConfigMap
+      name: echo-build-info
+      fieldPath: data.BUILD_VERSION
+    targets:
+      - select:
+          kind: Deployment
+          name: echo-app
+        fieldPaths:
+          - spec.template.metadata.labels.[app.kubernetes.io/version]
+
+# Generators for creating resources
+generators: []
+
+# Transformers
+transformers: []
+
+# Validators
+validators: []
+
+# Inventory settings
+inventory:
+  type: ConfigMap
+  configMap:
+    name: echo-inventory
+    namespace: echo
+
+# Build metadata
+buildMetadata:
+  - originAnnotations
+  - transformerAnnotations
+  - managedByLabel

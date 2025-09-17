@@ -13,7 +13,7 @@ class AudioDeviceManager extends EventEmitter {
     this.devices = {
       inputs: [],
       outputs: [],
-      virtual: []
+      virtual: [],
     };
     this.defaultInput = null;
     this.defaultOutput = null;
@@ -22,7 +22,7 @@ class AudioDeviceManager extends EventEmitter {
     this.isConnectedToPipeline = false;
     this.activeDevices = {
       input: null,
-      output: null
+      output: null,
     };
   }
 
@@ -77,9 +77,13 @@ class AudioDeviceManager extends EventEmitter {
   async refreshWindowsDevices() {
     try {
       // Get input devices
-      const { stdout: inputDevices } = await execAsync('powershell -Command "Get-AudioDevice -List | Where-Object { $_.Type -eq \'Recording\' } | ConvertTo-Json"');
+      const { stdout: inputDevices } = await execAsync(
+        'powershell -Command "Get-AudioDevice -List | Where-Object { $_.Type -eq \'Recording\' } | ConvertTo-Json"'
+      );
       // Get output devices
-      const { stdout: outputDevices } = await execAsync('powershell -Command "Get-AudioDevice -List | Where-Object { $_.Type -eq \'Playback\' } | ConvertTo-Json"');
+      const { stdout: outputDevices } = await execAsync(
+        'powershell -Command "Get-AudioDevice -List | Where-Object { $_.Type -eq \'Playback\' } | ConvertTo-Json"'
+      );
 
       this.devices.inputs = [];
       this.devices.outputs = [];
@@ -89,12 +93,12 @@ class AudioDeviceManager extends EventEmitter {
       if (inputDevices && inputDevices.trim()) {
         const inputs = JSON.parse(inputDevices);
         if (Array.isArray(inputs)) {
-          this.devices.inputs = inputs.map(device => ({
+          this.devices.inputs = inputs.map((device) => ({
             id: device.ID,
             name: device.Name,
             type: 'input',
             isDefault: device.Default,
-            isVirtual: this.isVirtualDevice(device.Name)
+            isVirtual: this.isVirtualDevice(device.Name),
           }));
         }
       }
@@ -103,23 +107,23 @@ class AudioDeviceManager extends EventEmitter {
       if (outputDevices && outputDevices.trim()) {
         const outputs = JSON.parse(outputDevices);
         if (Array.isArray(outputs)) {
-          this.devices.outputs = outputs.map(device => ({
+          this.devices.outputs = outputs.map((device) => ({
             id: device.ID,
             name: device.Name,
             type: 'output',
             isDefault: device.Default,
-            isVirtual: this.isVirtualDevice(device.Name)
+            isVirtual: this.isVirtualDevice(device.Name),
           }));
         }
       }
 
       // Find virtual devices
-      this.devices.virtual = [...this.devices.inputs, ...this.devices.outputs]
-        .filter(device => device.isVirtual);
+      this.devices.virtual = [...this.devices.inputs, ...this.devices.outputs].filter(
+        (device) => device.isVirtual
+      );
 
       // Get default devices
       await this.updateDefaultDevices();
-
     } catch (error) {
       throw new Error(`Failed to refresh Windows audio devices: ${error.message}`);
     }
@@ -140,19 +144,28 @@ class AudioDeviceManager extends EventEmitter {
       this.devices.virtual = [];
 
       if (audioData.SPAudioDataType && Array.isArray(audioData.SPAudioDataType)) {
-        audioData.SPAudioDataType.forEach(device => {
-          const isInput = device._items && device._items.some(item =>
-            item._name === 'input_source' && item._spaudio_audio_input_device === 'spaudio_yes');
+        audioData.SPAudioDataType.forEach((device) => {
+          const isInput =
+            device._items &&
+            device._items.some(
+              (item) =>
+                item._name === 'input_source' && item._spaudio_audio_input_device === 'spaudio_yes'
+            );
 
-          const isOutput = device._items && device._items.some(item =>
-            item._name === 'output_source' && item._spaudio_audio_output_device === 'spaudio_yes');
+          const isOutput =
+            device._items &&
+            device._items.some(
+              (item) =>
+                item._name === 'output_source' &&
+                item._spaudio_audio_output_device === 'spaudio_yes'
+            );
 
           const deviceInfo = {
             id: device._name,
             name: device._name,
-            type: isInput && isOutput ? 'both' : (isInput ? 'input' : 'output'),
+            type: isInput && isOutput ? 'both' : isInput ? 'input' : 'output',
             isDefault: device._default_audio_system_device === 'spaudio_yes',
-            isVirtual: this.isVirtualDevice(device._name)
+            isVirtual: this.isVirtualDevice(device._name),
           };
 
           if (isInput) {
@@ -171,7 +184,6 @@ class AudioDeviceManager extends EventEmitter {
 
       // Get default devices
       await this.updateDefaultDevices();
-
     } catch (error) {
       throw new Error(`Failed to refresh macOS audio devices: ${error.message}`);
     }
@@ -184,10 +196,12 @@ class AudioDeviceManager extends EventEmitter {
   async refreshLinuxDevices() {
     try {
       // Use pactl to get audio devices
-      const { stdout } = await execAsync('pactl list short sinks | awk \'{print $2}\'');
+      const { stdout } = await execAsync("pactl list short sinks | awk '{print $2}'");
       const sinks = stdout.trim().split('\n');
 
-      const { stdout: sources } = await execAsync('pactl list short sources | grep -v ".monitor" | awk \'{print $2}\'');
+      const { stdout: sources } = await execAsync(
+        'pactl list short sources | grep -v ".monitor" | awk \'{print $2}\''
+      );
       const sourceList = sources.trim().split('\n');
 
       this.devices.inputs = [];
@@ -207,7 +221,7 @@ class AudioDeviceManager extends EventEmitter {
           name: sink,
           type: 'output',
           isDefault,
-          isVirtual
+          isVirtual,
         };
 
         this.devices.outputs.push(deviceInfo);
@@ -218,7 +232,9 @@ class AudioDeviceManager extends EventEmitter {
       for (const source of sourceList) {
         if (!source) continue;
 
-        const { stdout: sourceInfo } = await execAsync(`pactl list sources | grep -A 10 "${source}$"`);
+        const { stdout: sourceInfo } = await execAsync(
+          `pactl list sources | grep -A 10 "${source}$"`
+        );
         const isDefault = sourceInfo.includes('Default Source: yes');
         const isVirtual = this.isVirtualDevice(source);
 
@@ -227,7 +243,7 @@ class AudioDeviceManager extends EventEmitter {
           name: source,
           type: 'input',
           isDefault,
-          isVirtual
+          isVirtual,
         };
 
         this.devices.inputs.push(deviceInfo);
@@ -236,7 +252,6 @@ class AudioDeviceManager extends EventEmitter {
 
       // Get default devices
       await this.updateDefaultDevices();
-
     } catch (error) {
       throw new Error(`Failed to refresh Linux audio devices: ${error.message}`);
     }
@@ -260,10 +275,10 @@ class AudioDeviceManager extends EventEmitter {
       /soundsiphon/i,
       /loopback audio/i,
       /virtual cable/i,
-      /virtual device/i
+      /virtual device/i,
     ];
 
-    return virtualDevicePatterns.some(pattern => pattern.test(deviceName));
+    return virtualDevicePatterns.some((pattern) => pattern.test(deviceName));
   }
 
   /**
@@ -273,16 +288,15 @@ class AudioDeviceManager extends EventEmitter {
   async updateDefaultDevices() {
     try {
       // Find default input device
-      this.defaultInput = this.devices.inputs.find(device => device.isDefault) || null;
+      this.defaultInput = this.devices.inputs.find((device) => device.isDefault) || null;
 
       // Find default output device
-      this.defaultOutput = this.devices.outputs.find(device => device.isDefault) || null;
+      this.defaultOutput = this.devices.outputs.find((device) => device.isDefault) || null;
 
       this.emit('defaultDevicesUpdated', {
         input: this.defaultInput,
-        output: this.defaultOutput
+        output: this.defaultOutput,
       });
-
     } catch (error) {
       this.emit('error', new Error(`Failed to update default devices: ${error.message}`));
     }
@@ -314,7 +328,6 @@ class AudioDeviceManager extends EventEmitter {
       // Refresh devices to update the default device status
       await this.refreshDevices();
       return true;
-
     } catch (error) {
       this.emit('error', new Error(`Failed to set default ${type} device: ${error.message}`));
       return false;
@@ -332,27 +345,29 @@ class AudioDeviceManager extends EventEmitter {
 
       // Check for device additions/removals
       const oldDeviceIds = new Set([
-        ...oldDevices.inputs.map(d => d.id),
-        ...oldDevices.outputs.map(d => d.id)
+        ...oldDevices.inputs.map((d) => d.id),
+        ...oldDevices.outputs.map((d) => d.id),
       ]);
 
       const newDeviceIds = new Set([
-        ...this.devices.inputs.map(d => d.id),
-        ...this.devices.outputs.map(d => d.id)
+        ...this.devices.inputs.map((d) => d.id),
+        ...this.devices.outputs.map((d) => d.id),
       ]);
 
       // Find added devices
       const addedDevices = [
-        ...this.devices.inputs.filter(d => !oldDeviceIds.has(d.id)),
-        ...this.devices.outputs.filter(d => !oldDeviceIds.has(d.id) &&
-          !this.devices.inputs.some(input => input.id === d.id))
+        ...this.devices.inputs.filter((d) => !oldDeviceIds.has(d.id)),
+        ...this.devices.outputs.filter(
+          (d) => !oldDeviceIds.has(d.id) && !this.devices.inputs.some((input) => input.id === d.id)
+        ),
       ];
 
       // Find removed devices
       const removedDevices = [
-        ...oldDevices.inputs.filter(d => !newDeviceIds.has(d.id)),
-        ...oldDevices.outputs.filter(d => !newDeviceIds.has(d.id) &&
-          !oldDevices.inputs.some(input => input.id === d.id))
+        ...oldDevices.inputs.filter((d) => !newDeviceIds.has(d.id)),
+        ...oldDevices.outputs.filter(
+          (d) => !newDeviceIds.has(d.id) && !oldDevices.inputs.some((input) => input.id === d.id)
+        ),
       ];
 
       // Emit events for device changes
@@ -365,14 +380,19 @@ class AudioDeviceManager extends EventEmitter {
       }
 
       // Check for default device changes
-      if ((this.defaultInput && oldDevices.defaultInput && this.defaultInput.id !== oldDevices.defaultInput.id) ||
-        (this.defaultOutput && oldDevices.defaultOutput && this.defaultOutput.id !== oldDevices.defaultOutput.id)) {
+      if (
+        (this.defaultInput &&
+          oldDevices.defaultInput &&
+          this.defaultInput.id !== oldDevices.defaultInput.id) ||
+        (this.defaultOutput &&
+          oldDevices.defaultOutput &&
+          this.defaultOutput.id !== oldDevices.defaultOutput.id)
+      ) {
         this.emit('defaultDevicesChanged', {
           input: this.defaultInput,
-          output: this.defaultOutput
+          output: this.defaultOutput,
         });
       }
-
     } catch (error) {
       this.emit('error', new Error(`Failed to check for device changes: ${error.message}`));
     }
@@ -468,17 +488,16 @@ class AudioDeviceManager extends EventEmitter {
       this.isConnectedToPipeline = true;
       this.emit('pipelineConnected', {
         success: true,
-        pipeline: pipeline.constructor.name
+        pipeline: pipeline.constructor.name,
       });
 
       return true;
-
     } catch (error) {
       console.error('Failed to connect to translation pipeline:', error);
       this.emit('error', {
         type: 'pipelineConnection',
         message: error.message,
-        error
+        error,
       });
 
       return false;
@@ -497,8 +516,14 @@ class AudioDeviceManager extends EventEmitter {
 
       // Remove event listeners
       if (this.translationPipeline.removeListener) {
-        this.translationPipeline.removeListener('pipelineActivated', this.handlePipelineActivated.bind(this));
-        this.translationPipeline.removeListener('pipelineDeactivated', this.handlePipelineDeactivated.bind(this));
+        this.translationPipeline.removeListener(
+          'pipelineActivated',
+          this.handlePipelineActivated.bind(this)
+        );
+        this.translationPipeline.removeListener(
+          'pipelineDeactivated',
+          this.handlePipelineDeactivated.bind(this)
+        );
       }
 
       // Reset audio routing if needed
@@ -512,13 +537,12 @@ class AudioDeviceManager extends EventEmitter {
       this.emit('pipelineDisconnected', { success: true });
 
       return true;
-
     } catch (error) {
       console.error('Failed to disconnect from translation pipeline:', error);
       this.emit('error', {
         type: 'pipelineDisconnection',
         message: error.message,
-        error
+        error,
       });
 
       return false;
@@ -543,13 +567,13 @@ class AudioDeviceManager extends EventEmitter {
     if (this.translationPipeline && this.translationPipeline.setAudioDevices) {
       await this.translationPipeline.setAudioDevices({
         input: this.activeDevices.input,
-        output: this.activeDevices.output
+        output: this.activeDevices.output,
       });
     }
 
     this.emit('audioRoutingChanged', {
       input: this.activeDevices.input?.name || 'Default',
-      output: this.activeDevices.output?.name || 'Default'
+      output: this.activeDevices.output?.name || 'Default',
     });
   }
 
@@ -561,7 +585,7 @@ class AudioDeviceManager extends EventEmitter {
     // Reset active devices
     this.activeDevices = {
       input: null,
-      output: null
+      output: null,
     };
 
     // Notify about the change
@@ -575,7 +599,7 @@ class AudioDeviceManager extends EventEmitter {
    */
   async setActiveInputDevice(deviceId) {
     try {
-      const device = this.devices.inputs.find(d => d.id === deviceId);
+      const device = this.devices.inputs.find((d) => d.id === deviceId);
 
       if (!device) {
         throw new Error(`Input device with ID ${deviceId} not found`);
@@ -591,13 +615,12 @@ class AudioDeviceManager extends EventEmitter {
       this.emit('inputDeviceChanged', { device });
 
       return true;
-
     } catch (error) {
       console.error('Failed to set active input device:', error);
       this.emit('error', {
         type: 'deviceSelection',
         message: error.message,
-        error
+        error,
       });
 
       return false;
@@ -611,7 +634,7 @@ class AudioDeviceManager extends EventEmitter {
    */
   async setActiveOutputDevice(deviceId) {
     try {
-      const device = this.devices.outputs.find(d => d.id === deviceId);
+      const device = this.devices.outputs.find((d) => d.id === deviceId);
 
       if (!device) {
         throw new Error(`Output device with ID ${deviceId} not found`);
@@ -627,13 +650,12 @@ class AudioDeviceManager extends EventEmitter {
       this.emit('outputDeviceChanged', { device });
 
       return true;
-
     } catch (error) {
       console.error('Failed to set active output device:', error);
       this.emit('error', {
         type: 'deviceSelection',
         message: error.message,
-        error
+        error,
       });
 
       return false;
@@ -663,7 +685,7 @@ class AudioDeviceManager extends EventEmitter {
       // Emit connection event
       this.emit('pipelineConnected', {
         success: true,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
 
       console.log('AudioDeviceManager connected to translation pipeline');
@@ -700,13 +722,16 @@ class AudioDeviceManager extends EventEmitter {
       // Emit disconnection event
       this.emit('pipelineDisconnected', {
         success: true,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
 
       console.log('AudioDeviceManager disconnected from translation pipeline');
       return true;
     } catch (error) {
-      this.emit('error', new Error(`Failed to disconnect from translation pipeline: ${error.message}`));
+      this.emit(
+        'error',
+        new Error(`Failed to disconnect from translation pipeline: ${error.message}`)
+      );
       return false;
     }
   }
@@ -728,7 +753,7 @@ class AudioDeviceManager extends EventEmitter {
         ...options,
         source: 'deviceManager',
         sourceDevice: this.activeDevices.input?.name || 'unknown',
-        timestamp: Date.now()
+        timestamp: Date.now(),
       };
 
       // Send to pipeline
@@ -749,7 +774,7 @@ class AudioDeviceManager extends EventEmitter {
     this.emit('pipelineStatusChanged', {
       status: 'activated',
       data,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
   }
 
@@ -762,7 +787,7 @@ class AudioDeviceManager extends EventEmitter {
     this.emit('pipelineStatusChanged', {
       status: 'deactivated',
       data,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
   }
 
@@ -792,7 +817,7 @@ class AudioDeviceManager extends EventEmitter {
   getPipelineStatus() {
     return {
       isConnected: this.isConnectedToPipeline,
-      pipelineActive: this.translationPipeline ? true : false
+      pipelineActive: this.translationPipeline ? true : false,
     };
   }
 
@@ -802,18 +827,22 @@ class AudioDeviceManager extends EventEmitter {
    */
   getAudioRoutingStatus() {
     return {
-      input: this.activeDevices.input ? {
-        id: this.activeDevices.input.id,
-        name: this.activeDevices.input.name,
-        isVirtual: this.activeDevices.input.isVirtual
-      } : null,
-      output: this.activeDevices.output ? {
-        id: this.activeDevices.output.id,
-        name: this.activeDevices.output.name,
-        isVirtual: this.activeDevices.output.isVirtual
-      } : null,
+      input: this.activeDevices.input
+        ? {
+            id: this.activeDevices.input.id,
+            name: this.activeDevices.input.name,
+            isVirtual: this.activeDevices.input.isVirtual,
+          }
+        : null,
+      output: this.activeDevices.output
+        ? {
+            id: this.activeDevices.output.id,
+            name: this.activeDevices.output.name,
+            isVirtual: this.activeDevices.output.isVirtual,
+          }
+        : null,
       isConnectedToPipeline: this.isConnectedToPipeline,
-      pipelineActive: this.translationPipeline?.isActive || false
+      pipelineActive: this.translationPipeline?.isActive || false,
     };
   }
 

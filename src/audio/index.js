@@ -9,5 +9,5 @@ module.exports = {
   AudioOutput,
   VirtualAudioDevice,
   AudioProcessor,
-  AudioDeviceManager
+  AudioDeviceManager,
 };

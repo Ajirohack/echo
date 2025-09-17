@@ -6,10 +6,10 @@
  */
 function formatTextForDisplay(text, maxLength = 100) {
   if (typeof text !== 'string') return '';
-  
+
   const trimmed = text.trim();
   if (trimmed.length <= maxLength) return trimmed;
-  
+
   return `${trimmed.substring(0, maxLength)}...`;
 }
 

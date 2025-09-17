@@ -66,15 +66,24 @@ class AudioManager extends EventEmitter {
    */
   initializeAudioContext() {
     try {
-      const { webFrame } = require('electron').remote;
+      // We can't use Web Audio API in the main process
+      // This should only be called in the renderer process
+      if (typeof window === 'undefined') {
+        logger.info('Skipping audio context initialization in main process');
+        return;
+      }
+
       const audioContext = new (window.AudioContext || window.webkitAudioContext)({
-        sampleRate: this.sampleRate
+        sampleRate: this.sampleRate,
       });
       this.audioContext = audioContext;
       logger.info('Audio context initialized');
     } catch (error) {
       logger.error('Failed to initialize audio context:', error);
-      this.showError('Audio Initialization Error', 'Failed to initialize audio system. Please check your audio devices and try again.');
+      this.showError(
+        'Audio Initialization Error',
+        'Failed to initialize audio system. Please check your audio devices and try again.'
+      );
     }
   }
 
@@ -87,7 +96,9 @@ class AudioManager extends EventEmitter {
       this.outputDevices = this.store.get('audio.outputDevices', []);
       this.virtualDevices = this.store.get('audio.virtualDevices', []);
 
-      logger.info(`Loaded ${this.inputDevices.length} input devices, ${this.outputDevices.length} output devices, ${this.virtualDevices.length} virtual devices`);
+      logger.info(
+        `Loaded ${this.inputDevices.length} input devices, ${this.outputDevices.length} output devices, ${this.virtualDevices.length} virtual devices`
+      );
 
       // If no devices in store, refresh the list
       if (this.inputDevices.length === 0 || this.outputDevices.length === 0) {
@@ -122,7 +133,7 @@ class AudioManager extends EventEmitter {
         return {
           inputDevices: this.inputDevices,
           outputDevices: this.outputDevices,
-          virtualDevices: this.virtualDevices
+          virtualDevices: this.virtualDevices,
         };
       } else {
         // Fallback to system commands
@@ -131,6 +142,39 @@ class AudioManager extends EventEmitter {
     } catch (error) {
       logger.error('Error refreshing audio devices:', error);
       return await this.detectDevicesFallback();
+    }
+  }
+
+  /**
+   * Refresh the list of available audio devices
+   * @returns {Promise<Object>} A promise that resolves to the refreshed device lists
+   */
+  async refreshDevices() {
+    try {
+      logger.info('Refreshing audio devices');
+
+      // In a full implementation, this would use the appropriate APIs
+      // to get the latest list of audio devices
+      this.inputDevices = await this.getAudioDevices('input');
+      this.outputDevices = await this.getAudioDevices('output');
+      this.detectVirtualDevices();
+
+      logger.info(
+        `Refreshed devices: ${this.inputDevices.length} inputs, ${this.outputDevices.length} outputs, ${this.virtualDevices.length} virtual`
+      );
+
+      return {
+        inputDevices: this.inputDevices,
+        outputDevices: this.outputDevices,
+        virtualDevices: this.virtualDevices,
+      };
+    } catch (error) {
+      logger.error('Error refreshing audio devices:', error);
+      return {
+        inputDevices: this.inputDevices || [],
+        outputDevices: this.outputDevices || [],
+        virtualDevices: this.virtualDevices || [],
+      };
     }
   }
 
@@ -147,7 +191,7 @@ class AudioManager extends EventEmitter {
     return {
       inputDevices: this.inputDevices,
       outputDevices: this.outputDevices,
-      virtualDevices: this.virtualDevices
+      virtualDevices: this.virtualDevices,
     };
   }
 
@@ -165,19 +209,19 @@ class AudioManager extends EventEmitter {
       /blackhole/i,
       /soundflower/i,
       /loopback/i,
-      /virtual cable/i
+      /virtual cable/i,
     ];
 
     // Check both input and output devices for virtual devices
     const allDevices = [...(this.inputDevices || []), ...(this.outputDevices || [])];
     const virtualDevices = [];
 
-    allDevices.forEach(device => {
-      if (virtualDevicePatterns.some(pattern => pattern.test(device.name))) {
-        if (!virtualDevices.some(vd => vd.id === device.id)) {
+    allDevices.forEach((device) => {
+      if (virtualDevicePatterns.some((pattern) => pattern.test(device.name))) {
+        if (!virtualDevices.some((vd) => vd.id === device.id)) {
           virtualDevices.push({
             ...device,
-            isVirtual: true
+            isVirtual: true,
           });
         }
       }
@@ -210,7 +254,7 @@ class AudioManager extends EventEmitter {
         bufferSize: this.bufferSize,
         sampleRate: this.sampleRate,
         channels: this.channels,
-        vadEnabled: this.vadEnabled
+        vadEnabled: this.vadEnabled,
       });
 
       // In a real implementation, we would:
@@ -225,7 +269,7 @@ class AudioManager extends EventEmitter {
       this.emit('captureStarted', {
         deviceId: deviceId || 'default',
         timestamp: Date.now(),
-        options
+        options,
       });
 
       // Simulate audio capture for demo purposes
@@ -235,7 +279,10 @@ class AudioManager extends EventEmitter {
     } catch (error) {
       logger.error('Error starting audio capture:', error);
       this.isCapturing = false;
-      this.showError('Audio Capture Error', 'Failed to start audio capture. Please check your audio settings.');
+      this.showError(
+        'Audio Capture Error',
+        'Failed to start audio capture. Please check your audio settings.'
+      );
       return { success: false, error: error.message };
     }
   }
@@ -284,7 +331,7 @@ class AudioManager extends EventEmitter {
 
       // Generate a simple sine wave
       for (let i = 0; i < samples; i++) {
-        const value = Math.sin(i * 0.01) * 0x7FFF; // Generate a sine wave scaled to 16-bit range
+        const value = Math.sin(i * 0.01) * 0x7fff; // Generate a sine wave scaled to 16-bit range
         buffer.writeInt16LE(Math.floor(value), i * 2);
       }
 
@@ -299,7 +346,7 @@ class AudioManager extends EventEmitter {
           this.isSpeechDetected = false;
           this.emit('voiceActivityEnd', {
             timestamp: Date.now(),
-            duration: Math.floor(Math.random() * 3000) + 1000 // Random duration between 1-4s
+            duration: Math.floor(Math.random() * 3000) + 1000, // Random duration between 1-4s
           });
         }
       }
@@ -319,9 +366,9 @@ class AudioManager extends EventEmitter {
           format: {
             sampleRate: this.sampleRate,
             channels: this.channels,
-            bitDepth: 16
+            bitDepth: 16,
           },
-          isSpeech: this.isSpeechDetected
+          isSpeech: this.isSpeechDetected,
         });
       }
 
@@ -331,10 +378,10 @@ class AudioManager extends EventEmitter {
         format: {
           sampleRate: this.sampleRate,
           channels: this.channels,
-          bitDepth: 16
+          bitDepth: 16,
         },
         isSpeech: this.isSpeechDetected,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
     };
 
@@ -362,24 +409,24 @@ class AudioManager extends EventEmitter {
         format: {
           sampleRate: this.sampleRate,
           channels: this.channels,
-          bitDepth: 16
-        }
+          bitDepth: 16,
+        },
       });
     }
 
     // Emit processed buffer event
     this.emit('audioProcessed', {
       buffer: combinedBuffer,
-      duration: (combinedBuffer.length / 2) / this.sampleRate * 1000, // Duration in ms
-      timestamp: Date.now()
+      duration: (combinedBuffer.length / 2 / this.sampleRate) * 1000, // Duration in ms
+      timestamp: Date.now(),
     });
   }
   // Generate some dummy audio data
   generateDummyAudio(samples) {
     const audioBuffer = new Float32Array(samples);
-    
+
     // Generate some noise
-    for(let i = 0; i < samples; i++) {
+    for (let i = 0; i < samples; i++) {
       audioBuffer[i] = Math.random() * 2 - 1; // Random values between -1 and 1
     }
 
@@ -394,9 +441,9 @@ class AudioManager extends EventEmitter {
     this.simulationInterval = setInterval(() => {
       if (this.isCapturing) {
         const audioData = this.generateDummyAudio(4096);
-    onAudioData(audioData);
-  }
-}, 100); // 10 updates per second for demo
+        onAudioData(audioData);
+      }
+    }, 100); // 10 updates per second for demo
   }
 
   /**
@@ -405,48 +452,48 @@ class AudioManager extends EventEmitter {
    * @param {Buffer|Float32Array} audioData - The audio data to play
    */
   async routeAudio(deviceId, audioData) {
-  try {
-    logger.debug(`Routing audio to device: ${deviceId}`);
+    try {
+      logger.debug(`Routing audio to device: ${deviceId}`);
 
-    // In a real implementation, we would:
-    // 1. Convert the audio data to the correct format
-    // 2. Send it to the specified output device
-    // 3. Handle any necessary audio processing
+      // In a real implementation, we would:
+      // 1. Convert the audio data to the correct format
+      // 2. Send it to the specified output device
+      // 3. Handle any necessary audio processing
 
-    return { success: true };
-  } catch (error) {
-    logger.error('Error routing audio:', error);
-    return { success: false, error: error.message };
-  }
-}
-
-/**
- * Show an error dialog to the user
- */
-showError(title, message) {
-  dialog.showErrorBox(title, message);
-}
-
-/**
- * Clean up resources
- */
-cleanup() {
-  this.stopCapture();
-
-  if (this.audioContext && this.audioContext.state !== 'closed') {
-    this.audioContext.close();
+      return { success: true };
+    } catch (error) {
+      logger.error('Error routing audio:', error);
+      return { success: false, error: error.message };
+    }
   }
 
-  // Disconnect from translation pipeline if connected
-  if (this.translationPipeline) {
-    this.disconnectFromTranslationPipeline();
+  /**
+   * Show an error dialog to the user
+   */
+  showError(title, message) {
+    dialog.showErrorBox(title, message);
   }
 
-  // Remove all event listeners
-  this.removeAllListeners();
+  /**
+   * Clean up resources
+   */
+  cleanup() {
+    this.stopCapture();
 
-  logger.info('Audio manager cleaned up');
-}
+    if (this.audioContext && this.audioContext.state !== 'closed') {
+      this.audioContext.close();
+    }
+
+    // Disconnect from translation pipeline if connected
+    if (this.translationPipeline) {
+      this.disconnectFromTranslationPipeline();
+    }
+
+    // Remove all event listeners
+    this.removeAllListeners();
+
+    logger.info('Audio manager cleaned up');
+  }
 
   /**
    * Connect to the translation pipeline
@@ -454,64 +501,70 @@ cleanup() {
    * @returns {Promise<boolean>} - Success status
    */
   async connectToTranslationPipeline(pipeline) {
-  try {
-    if (!pipeline) {
-      throw new Error('Invalid translation pipeline provided');
+    try {
+      if (!pipeline) {
+        throw new Error('Invalid translation pipeline provided');
+      }
+
+      this.translationPipeline = pipeline;
+
+      // Set up audio processing callback
+      this.translationPipeline.on('pipelineActivated', this.handlePipelineActivated.bind(this));
+      this.translationPipeline.on('pipelineDeactivated', this.handlePipelineDeactivated.bind(this));
+
+      logger.info('Connected to translation pipeline');
+      this.emit('translationPipelineConnected', { timestamp: Date.now() });
+
+      return true;
+    } catch (error) {
+      logger.error('Failed to connect to translation pipeline:', error);
+      this.emit('error', {
+        type: 'pipelineConnection',
+        message: error.message,
+        error,
+      });
+
+      return false;
     }
-
-    this.translationPipeline = pipeline;
-
-    // Set up audio processing callback
-    this.translationPipeline.on('pipelineActivated', this.handlePipelineActivated.bind(this));
-    this.translationPipeline.on('pipelineDeactivated', this.handlePipelineDeactivated.bind(this));
-
-    logger.info('Connected to translation pipeline');
-    this.emit('translationPipelineConnected', { timestamp: Date.now() });
-
-    return true;
-  } catch (error) {
-    logger.error('Failed to connect to translation pipeline:', error);
-    this.emit('error', {
-      type: 'pipelineConnection',
-      message: error.message,
-      error
-    });
-
-    return false;
   }
-}
 
   /**
    * Disconnect from the translation pipeline
    * @returns {Promise<boolean>} - Success status
    */
   async disconnectFromTranslationPipeline() {
-  try {
-    if (!this.translationPipeline) {
-      return true; // Already disconnected
+    try {
+      if (!this.translationPipeline) {
+        return true; // Already disconnected
+      }
+
+      // Remove event listeners
+      this.translationPipeline.removeListener(
+        'pipelineActivated',
+        this.handlePipelineActivated.bind(this)
+      );
+      this.translationPipeline.removeListener(
+        'pipelineDeactivated',
+        this.handlePipelineDeactivated.bind(this)
+      );
+
+      this.translationPipeline = null;
+
+      logger.info('Disconnected from translation pipeline');
+      this.emit('translationPipelineDisconnected', { timestamp: Date.now() });
+
+      return true;
+    } catch (error) {
+      logger.error('Failed to disconnect from translation pipeline:', error);
+      this.emit('error', {
+        type: 'pipelineDisconnection',
+        message: error.message,
+        error,
+      });
+
+      return false;
     }
-
-    // Remove event listeners
-    this.translationPipeline.removeListener('pipelineActivated', this.handlePipelineActivated.bind(this));
-    this.translationPipeline.removeListener('pipelineDeactivated', this.handlePipelineDeactivated.bind(this));
-
-    this.translationPipeline = null;
-
-    logger.info('Disconnected from translation pipeline');
-    this.emit('translationPipelineDisconnected', { timestamp: Date.now() });
-
-    return true;
-  } catch (error) {
-    logger.error('Failed to disconnect from translation pipeline:', error);
-    this.emit('error', {
-      type: 'pipelineDisconnection',
-      message: error.message,
-      error
-    });
-
-    return false;
   }
-}
 
   /**
    * Send audio data to translation pipeline
@@ -520,214 +573,368 @@ cleanup() {
    * @returns {Promise<Boolean>} Success status
    */
   async sendAudioToPipeline(audioData, options = {}) {
-  if (!this.translationPipeline) {
-    logger.error('Cannot send audio: Not connected to translation pipeline');
-    return false;
+    if (!this.translationPipeline) {
+      logger.error('Cannot send audio: Not connected to translation pipeline');
+      return false;
+    }
+
+    try {
+      const result = await this.translationPipeline.startPipeline(audioData, {
+        source: 'audio-manager',
+        format: {
+          sampleRate: this.sampleRate,
+          channels: this.channels,
+          bitDepth: this.bitDepth,
+        },
+        ...options,
+      });
+
+      logger.debug('Audio sent to translation pipeline', { success: !!result });
+      return !!result;
+    } catch (error) {
+      logger.error('Error sending audio to translation pipeline', error);
+      this.emit('error', {
+        type: 'translation-pipeline',
+        message: error.message,
+        error,
+      });
+      return false;
+    }
   }
 
-  try {
-    const result = await this.translationPipeline.startPipeline(audioData, {
-      source: 'audio-manager',
-      format: {
+  /**
+   * Handle pipeline activation event
+   * @param {Object} data - Activation event data
+   */
+  handlePipelineActivated(data) {
+    logger.info('Translation pipeline activated');
+
+    // Start audio capture if not already capturing
+    if (!this.isCapturing) {
+      this.startCapture().catch((error) => {
+        logger.error('Failed to start capture after pipeline activation:', error);
+      });
+    }
+  }
+
+  /**
+   * Handle pipeline deactivation event
+   * @param {Object} data - Deactivation event data
+   */
+  handlePipelineDeactivated(data) {
+    logger.info('Translation pipeline deactivated');
+
+    // Stop audio capture if it was started by the pipeline
+    if (this.isCapturing) {
+      this.stopCapture().catch((error) => {
+        logger.error('Failed to stop capture after pipeline deactivation:', error);
+      });
+    }
+  }
+
+  /**
+   * Process audio data for translation
+   * @param {ArrayBuffer} audioData - Raw audio data
+   */
+  processAudioForTranslation(audioData) {
+    if (!this.translationPipeline) return;
+
+    try {
+      // Emit the audio data event for anyone listening
+      this.emit('audioData', {
+        buffer: audioData,
         sampleRate: this.sampleRate,
         channels: this.channels,
-        bitDepth: this.bitDepth
-      },
-      ...options
-    });
+        bitDepth: this.bitDepth,
+        timestamp: Date.now(),
+      });
 
-    logger.debug('Audio sent to translation pipeline', { success: !!result });
-    return !!result;
-  } catch (error) {
-    logger.error('Error sending audio to translation pipeline', error);
-    this.emit('error', {
-      type: 'translation-pipeline',
-      message: error.message,
-      error
-    });
-    return false;
-  }
-}
+      // If VAD is enabled, check for speech
+      if (this.vadEnabled) {
+        const hasSpeech = this.detectSpeech(audioData);
 
-/**
- * Handle pipeline activation event
- * @param {Object} data - Activation event data
- */
-handlePipelineActivated(data) {
-  logger.info('Translation pipeline activated');
+        if (hasSpeech && !this.isSpeechDetected) {
+          // Speech just started
+          this.isSpeechDetected = true;
+          this.speechStartTime = Date.now();
+          this.audioBuffer = [audioData];
 
-  // Start audio capture if not already capturing
-  if (!this.isCapturing) {
-    this.startCapture().catch(error => {
-      logger.error('Failed to start capture after pipeline activation:', error);
-    });
-  }
-}
+          this.emit('voiceActivityStart', {
+            timestamp: this.speechStartTime,
+          });
+        } else if (hasSpeech && this.isSpeechDetected) {
+          // Ongoing speech, add to buffer
+          this.audioBuffer.push(audioData);
+        } else if (!hasSpeech && this.isSpeechDetected) {
+          // Speech just ended
+          const speechEndTime = Date.now();
+          const speechDuration = speechEndTime - this.speechStartTime;
 
-/**
- * Handle pipeline deactivation event
- * @param {Object} data - Deactivation event data
- */
-handlePipelineDeactivated(data) {
-  logger.info('Translation pipeline deactivated');
+          // Only process if we have enough audio data (avoid processing very short noises)
+          if (speechDuration > 300 && this.audioBuffer.length > 0) {
+            // Combine all buffers
+            const combinedBuffer = Buffer.concat(this.audioBuffer);
 
-  // Stop audio capture if it was started by the pipeline
-  if (this.isCapturing) {
-    this.stopCapture().catch(error => {
-      logger.error('Failed to stop capture after pipeline deactivation:', error);
-    });
-  }
-}
+            // Send to translation pipeline
+            if (this.translationPipeline && this.translationPipeline.processAudio) {
+              this.translationPipeline.processAudio(combinedBuffer, {
+                sampleRate: this.sampleRate,
+                channels: this.channels,
+                bitDepth: this.bitDepth,
+              });
+            }
 
-/**
- * Process audio data for translation
- * @param {ArrayBuffer} audioData - Raw audio data
- */
-processAudioForTranslation(audioData) {
-  if (!this.translationPipeline) return;
+            this.emit('voiceActivityEnd', {
+              duration: speechDuration,
+              timestamp: speechEndTime,
+            });
+          }
 
-  try {
-    // Emit the audio data event for anyone listening
-    this.emit('audioData', {
-      buffer: audioData,
-      sampleRate: this.sampleRate,
-      channels: this.channels,
-      bitDepth: this.bitDepth,
-      timestamp: Date.now()
-    });
-
-    // If VAD is enabled, check for speech
-    if (this.vadEnabled) {
-      const hasSpeech = this.detectSpeech(audioData);
-
-      if (hasSpeech && !this.isSpeechDetected) {
-        // Speech just started
-        this.isSpeechDetected = true;
-        this.speechStartTime = Date.now();
-        this.audioBuffer = [audioData];
-
-        this.emit('voiceActivityStart', {
-          timestamp: this.speechStartTime
-        });
-      } else if (hasSpeech && this.isSpeechDetected) {
-        // Ongoing speech, add to buffer
+          // Reset speech detection
+          this.isSpeechDetected = false;
+          this.audioBuffer = [];
+        }
+      } else {
+        // No VAD, send audio directly to pipeline
+        // Add to buffer and process when buffer is full
         this.audioBuffer.push(audioData);
-      } else if (!hasSpeech && this.isSpeechDetected) {
-        // Speech just ended
-        const speechEndTime = Date.now();
-        const speechDuration = speechEndTime - this.speechStartTime;
 
-        // Only process if we have enough audio data (avoid processing very short noises)
-        if (speechDuration > 300 && this.audioBuffer.length > 0) {
-          // Combine all buffers
+        if (this.audioBuffer.length >= 5) {
+          // Process every ~1 second (5 chunks of ~200ms)
           const combinedBuffer = Buffer.concat(this.audioBuffer);
+          this.audioBuffer = [];
 
-          // Send to translation pipeline
           if (this.translationPipeline && this.translationPipeline.processAudio) {
             this.translationPipeline.processAudio(combinedBuffer, {
               sampleRate: this.sampleRate,
               channels: this.channels,
-              bitDepth: this.bitDepth
+              bitDepth: this.bitDepth,
             });
           }
-
-          this.emit('voiceActivityEnd', {
-            duration: speechDuration,
-            timestamp: speechEndTime
-          });
-        }
-
-        // Reset speech detection
-        this.isSpeechDetected = false;
-        this.audioBuffer = [];
-      }
-    } else {
-      // No VAD, send audio directly to pipeline
-      // Add to buffer and process when buffer is full
-      this.audioBuffer.push(audioData);
-
-      if (this.audioBuffer.length >= 5) { // Process every ~1 second (5 chunks of ~200ms)
-        const combinedBuffer = Buffer.concat(this.audioBuffer);
-        this.audioBuffer = [];
-
-        if (this.translationPipeline && this.translationPipeline.processAudio) {
-          this.translationPipeline.processAudio(combinedBuffer, {
-            sampleRate: this.sampleRate,
-            channels: this.channels,
-            bitDepth: this.bitDepth
-          });
         }
       }
+    } catch (error) {
+      logger.error('Error processing audio for translation:', error);
+      this.emit('error', {
+        type: 'audioProcessing',
+        message: error.message,
+        error,
+      });
     }
-  } catch (error) {
-    logger.error('Error processing audio for translation:', error);
-    this.emit('error', {
-      type: 'audioProcessing',
-      message: error.message,
-      error
-    });
   }
-}
 
-/**
- * Simple voice activity detection (VAD) implementation
- * @param {ArrayBuffer} audioData - Raw audio data
- * @returns {boolean} - Whether speech was detected
- */
-detectSpeech(audioData) {
-  try {
-    // Convert buffer to int16 samples
-    const samples = new Int16Array(audioData.buffer);
+  /**
+   * Simple voice activity detection (VAD) implementation
+   * @param {ArrayBuffer} audioData - Raw audio data
+   * @returns {boolean} - Whether speech was detected
+   */
+  detectSpeech(audioData) {
+    try {
+      // Convert buffer to int16 samples
+      const samples = new Int16Array(audioData.buffer);
 
-    // Calculate energy (sum of squared samples)
-    let energy = 0;
-    for (let i = 0; i < samples.length; i++) {
-      energy += samples[i] * samples[i];
+      // Calculate energy (sum of squared samples)
+      let energy = 0;
+      for (let i = 0; i < samples.length; i++) {
+        energy += samples[i] * samples[i];
+      }
+
+      // Normalize by buffer length
+      energy /= samples.length;
+
+      // Apply threshold (this is a simplistic approach; real VAD is more complex)
+      const threshold = 1000; // Adjust based on testing
+      return energy > threshold;
+    } catch (error) {
+      logger.error('Error in speech detection:', error);
+      return false;
     }
-
-    // Normalize by buffer length
-    energy /= samples.length;
-
-    // Apply threshold (this is a simplistic approach; real VAD is more complex)
-    const threshold = 1000; // Adjust based on testing
-    return energy > threshold;
-  } catch (error) {
-    logger.error('Error in speech detection:', error);
-    return false;
   }
-}
 
-/**
- * Set Voice Activity Detection (VAD) enabled state
- * @param {boolean} enabled - Whether VAD should be enabled
- */
-setVADEnabled(enabled) {
-  this.vadEnabled = enabled;
-  logger.info(`VAD ${enabled ? 'enabled' : 'disabled'}`);
+  /**
+   * Set Voice Activity Detection (VAD) enabled state
+   * @param {boolean} enabled - Whether VAD should be enabled
+   */
+  setVADEnabled(enabled) {
+    this.vadEnabled = enabled;
+    logger.info(`VAD ${enabled ? 'enabled' : 'disabled'}`);
 
-  // Reset speech detection state
-  this.isSpeechDetected = false;
-  this.audioBuffer = [];
-}
+    // Reset speech detection state
+    this.isSpeechDetected = false;
+    this.audioBuffer = [];
+  }
 
-/**
- * Get current audio processing status
- * @returns {Object} - Status information
- */
-getStatus() {
-  return {
-    initialized: this.initialized,
-    isCapturing: this.isCapturing,
-    connectedToPipeline: !!this.translationPipeline,
-    vadEnabled: this.vadEnabled,
-    isSpeechDetected: this.isSpeechDetected,
-    sampleRate: this.sampleRate,
-    channels: this.channels,
-    bitDepth: this.bitDepth,
-    inputDevice: this.selectedInputDevice,
-    outputDevice: this.selectedOutputDevice
-  };
-}
+  /**
+   * Get current audio processing status
+   * @returns {Object} - Status information
+   */
+  getStatus() {
+    return {
+      initialized: this.initialized,
+      isCapturing: this.isCapturing,
+      connectedToPipeline: !!this.translationPipeline,
+      vadEnabled: this.vadEnabled,
+      isSpeechDetected: this.isSpeechDetected,
+      sampleRate: this.sampleRate,
+      channels: this.channels,
+      bitDepth: this.bitDepth,
+      inputDevice: this.selectedInputDevice,
+      outputDevice: this.selectedOutputDevice,
+    };
+  }
+
+  /**
+   * Get audio devices of a specific type
+   * @param {string} type - Device type: 'input' or 'output'
+   * @returns {Promise<Array>} List of audio devices
+   */
+  async getAudioDevices(type = 'input') {
+    try {
+      const os = require('os');
+      const { exec } = require('child_process');
+      const platform = os.platform();
+      const AudioRecorder = require('node-audiorecorder');
+
+      return new Promise((resolve) => {
+        if (platform === 'darwin') {
+          // macOS implementation
+          exec('system_profiler SPAudioDataType', (error, stdout) => {
+            if (error) {
+              logger.error('Error detecting macOS audio devices:', error);
+              resolve([]);
+              return;
+            }
+
+            const devices = [];
+            const lines = stdout.split('\n');
+            let currentDevice = null;
+            let isInput = false;
+            let isOutput = false;
+
+            for (const line of lines) {
+              if (
+                line.includes(':') &&
+                !line.includes('Audio:') &&
+                !line.trim().startsWith('Location:')
+              ) {
+                if (
+                  currentDevice &&
+                  ((type === 'input' && isInput) || (type === 'output' && isOutput))
+                ) {
+                  devices.push(currentDevice);
+                }
+
+                currentDevice = {
+                  name: line.split(':')[0].trim(),
+                  id: line.split(':')[0].trim().toLowerCase().replace(/\s+/g, '-'),
+                  isDefault: false,
+                };
+                isInput = false;
+                isOutput = false;
+              } else if (
+                line.includes('Input Channels:') &&
+                parseInt(line.split(':')[1].trim()) > 0
+              ) {
+                isInput = true;
+              } else if (
+                line.includes('Output Channels:') &&
+                parseInt(line.split(':')[1].trim()) > 0
+              ) {
+                isOutput = true;
+              } else if (line.includes('Default Input:') && line.includes('Yes')) {
+                if (currentDevice) currentDevice.isDefault = true;
+              } else if (line.includes('Default Output:') && line.includes('Yes')) {
+                if (currentDevice) currentDevice.isDefault = true;
+              }
+            }
+
+            if (
+              currentDevice &&
+              ((type === 'input' && isInput) || (type === 'output' && isOutput))
+            ) {
+              devices.push(currentDevice);
+            }
+
+            logger.info(`Detected ${devices.length} ${type} audio devices on macOS`);
+            resolve(devices);
+          });
+        } else if (platform === 'win32') {
+          // Windows implementation
+          const command =
+            type === 'input'
+              ? 'powershell "Get-WmiObject Win32_SoundDevice | Where-Object { $_.StatusInfo -eq 1 } | Select-Object Name, DeviceID | ConvertTo-Json"'
+              : 'powershell "Get-WmiObject Win32_SoundDevice | Where-Object { $_.StatusInfo -eq 1 } | Select-Object Name, DeviceID | ConvertTo-Json"';
+
+          exec(command, (error, stdout) => {
+            if (error) {
+              logger.error('Error detecting Windows audio devices:', error);
+              resolve([]);
+              return;
+            }
+
+            try {
+              let devices = [];
+              const parsed = JSON.parse(stdout.trim());
+              const deviceList = Array.isArray(parsed) ? parsed : [parsed];
+
+              devices = deviceList.map((device) => ({
+                name: device.Name,
+                id: device.DeviceID,
+                isDefault: false, // Windows doesn't easily expose default device info in this command
+              }));
+
+              logger.info(`Detected ${devices.length} ${type} audio devices on Windows`);
+              resolve(devices);
+            } catch (parseError) {
+              logger.error('Error parsing Windows audio devices:', parseError);
+              resolve([]);
+            }
+          });
+        } else if (platform === 'linux') {
+          // Linux implementation
+          const command = 'arecord -l && aplay -l';
+
+          exec(command, (error, stdout) => {
+            if (error) {
+              logger.error('Error detecting Linux audio devices:', error);
+              resolve([]);
+              return;
+            }
+
+            const devices = [];
+            const lines = stdout.split('\n');
+            const regex =
+              type === 'input' ? /card\s+(\d+).*?\[(.+?)\]/ : /card\s+(\d+).*?\[(.+?)\]/;
+
+            for (const line of lines) {
+              const match = line.match(regex);
+              if (
+                match &&
+                ((type === 'input' && line.includes('arecord')) ||
+                  (type === 'output' && line.includes('aplay')))
+              ) {
+                devices.push({
+                  name: match[2].trim(),
+                  id: `card:${match[1]}`,
+                  isDefault: false,
+                });
+              }
+            }
+
+            logger.info(`Detected ${devices.length} ${type} audio devices on Linux`);
+            resolve(devices);
+          });
+        } else {
+          // Fallback for unsupported platforms
+          logger.warn(`Audio device detection not implemented for ${platform} platform`);
+          resolve([]);
+        }
+      });
+    } catch (error) {
+      logger.error(`Error getting ${type} audio devices:`, error);
+      return [];
+    }
+  }
 }
 
 module.exports = AudioManager;

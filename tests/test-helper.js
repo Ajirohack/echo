@@ -1,21 +1,9 @@
 // Import required testing libraries
-const chai = require('chai');
-const chaiAsPromised = require('chai-as-promised');
-const sinon = require('sinon');
-const sinonChai = require('sinon-chai');
 const path = require('path');
 const fs = require('fs');
 
-// Configure Chai
-const { expect, assert } = chai;
-
-// Add plugins
-chai.use(chaiAsPromised);
-chai.use(sinonChai);
-
-// Make Chai plugins available globally
-global.expect = expect;
-global.assert = assert;
+// Jest is available globally, no need to import
+// expect and other Jest utilities are already global
 
 // Configure test environment
 process.env.NODE_ENV = 'test';
@@ -26,11 +14,11 @@ process.env.TEST_ENV = 'unit';
 
 // Create a logger mock for tests
 const loggerMock = {
-  error: sinon.stub(),
-  warn: sinon.stub(),
-  info: sinon.stub(),
-  debug: sinon.stub(),
-  log: sinon.stub()
+  error: jest.fn(),
+  warn: jest.fn(),
+  info: jest.fn(),
+  debug: jest.fn(),
+  log: jest.fn()
 };
 
 // Setup mocks for external services
@@ -39,13 +27,13 @@ const setupMocks = () => {
   const mockDependencies = {
     '@google-cloud/speech': {
       SpeechClient: class MockSpeechClient {
-        constructor() { this.initialize = sinon.stub().resolves(); }
+        constructor() { this.initialize = jest.fn().mockResolvedValue(); }
         recognize() { return Promise.resolve([{ results: [] }]); }
       }
     },
     '@google-cloud/translate': {
       TranslationServiceClient: class MockTranslationClient {
-        constructor() { this.initialize = sinon.stub().resolves(); }
+        constructor() { this.initialize = jest.fn().mockResolvedValue(); }
         translateText() { return Promise.resolve([{ translations: [] }]); }
         detectLanguage() { return Promise.resolve([{ languages: [] }]); }
       }
@@ -147,35 +135,19 @@ if (!fs.existsSync(langPairsPath)) {
 // Configure test timeouts
 const TEST_TIMEOUT = process.env.CI ? 30000 : 10000;
 
-// Make sure we have the global mocha functions available
-const mochaHooks = {
-  before() {
-    // Set global test timeout
-    this.timeout(process.env.CI ? 30000 : 10000);
-  },
-  beforeEach() {
-    // Initialize sinon sandbox for each test
-    this.sandbox = sinon.createSandbox();
+// Jest setup functions
+beforeEach(() => {
+  // Clear all mocks before each test
+  jest.clearAllMocks();
+});
 
-    // Make sandbox available globally for tests that need it
-    global.sandbox = this.sandbox;
-  },
+afterEach(() => {
+  // Restore all mocks after each test
+  jest.restoreAllMocks();
+});
 
-  afterEach() {
-    // Clean up sandbox after each test
-    if (this.sandbox) {
-      this.sandbox.restore();
-    }
-
-    // Clean up global sandbox reference
-    if (global.sandbox) {
-      delete global.sandbox;
-    }
-  }
-};
-
-// Export the hooks
-exports.mochaHooks = mochaHooks;
+// Set Jest timeout
+jest.setTimeout(TEST_TIMEOUT);
 
 // Helper function for testing async/await errors
 const expectRejection = async (promise, errorType = Error, message = '') => {
@@ -186,9 +158,9 @@ const expectRejection = async (promise, errorType = Error, message = '') => {
     if (error.message === 'Expected promise to reject but it resolved') {
       throw error;
     }
-    expect(error).to.be.an.instanceOf(errorType);
+    expect(error).toBeInstanceOf(errorType);
     if (message) {
-      expect(error.message).to.include(message);
+      expect(error.message).toContain(message);
     }
     return error;
   }

@@ -1,0 +1,496 @@
+name: Release Management
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.2.3)'
+        required: true
+        type: string
+      prerelease:
+        description: 'Mark as pre-release'
+        required: false
+        default: false
+        type: boolean
+      draft:
+        description: 'Create as draft release'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  NODE_VERSION: '18'
+
+jobs:
+  # Validate release
+  validate:
+    name: Validate Release
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      changelog: ${{ steps.changelog.outputs.changelog }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract version
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/}"
+          fi
+          
+          # Validate version format
+          if [[ ! $VERSION =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+)?$ ]]; then
+            echo "❌ Invalid version format: $VERSION"
+            echo "Expected format: v1.2.3 or v1.2.3-beta"
+            exit 1
+          fi
+          
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "✅ Version: $VERSION"
+
+      - name: Check if tag exists
+        run: |
+          if git rev-parse "${{ steps.version.outputs.version }}" >/dev/null 2>&1; then
+            if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+              echo "❌ Tag ${{ steps.version.outputs.version }} already exists"
+              exit 1
+            fi
+          fi
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Get the previous tag
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          
+          if [[ -z "$PREVIOUS_TAG" ]]; then
+            echo "📝 Generating changelog from first commit..."
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" --reverse)
+          else
+            echo "📝 Generating changelog from $PREVIOUS_TAG to ${{ steps.version.outputs.version }}..."
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" $PREVIOUS_TAG..HEAD)
+          fi
+          
+          # Save changelog to file and output
+          echo "$CHANGELOG" > CHANGELOG.tmp
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Upload changelog
+        uses: actions/upload-artifact@v3
+        with:
+          name: changelog
+          path: CHANGELOG.tmp
+
+  # Run full test suite
+  test:
+    name: Release Tests
+    runs-on: ubuntu-latest
+    needs: validate
+    strategy:
+      matrix:
+        test-type: [unit, integration, e2e, security]
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_USER: test_user
+          POSTGRES_DB: echo_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup test environment
+        run: |
+          cp .env.example .env.test
+          cat >> .env.test << EOF
+          NODE_ENV=test
+          DATABASE_URL=postgresql://test_user:test_password@localhost:5432/echo_test
+          REDIS_URL=redis://localhost:6379
+          JWT_SECRET=test_jwt_secret_key_for_testing_only
+          ENCRYPTION_KEY=test_encryption_key_32_chars_long
+          EOF
+
+      - name: Wait for services
+        if: matrix.test-type != 'security'
+        run: |
+          timeout 60 bash -c 'until nc -z localhost 5432; do sleep 1; done'
+          timeout 60 bash -c 'until nc -z localhost 6379; do sleep 1; done'
+
+      - name: Run database migrations
+        if: matrix.test-type != 'security'
+        run: npm run migrate:test
+
+      - name: Run unit tests
+        if: matrix.test-type == 'unit'
+        run: npm run test:unit -- --coverage
+
+      - name: Run integration tests
+        if: matrix.test-type == 'integration'
+        run: npm run test:integration
+
+      - name: Run E2E tests
+        if: matrix.test-type == 'e2e'
+        run: |
+          npm run build
+          npx playwright install --with-deps
+          npm run test:e2e
+
+      - name: Run security tests
+        if: matrix.test-type == 'security'
+        run: |
+          npm audit --audit-level=high
+          npm run test:security
+
+  # Build release artifacts
+  build:
+    name: Build Release Artifacts
+    runs-on: ubuntu-latest
+    needs: [validate, test]
+    outputs:
+      image-digest: ${{ steps.build.outputs.digest }}
+      image-tags: ${{ steps.meta.outputs.tags }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Update version in package.json
+        run: |
+          VERSION="${{ needs.validate.outputs.version }}"
+          VERSION_NUMBER=${VERSION#v}  # Remove 'v' prefix
+          npm version $VERSION_NUMBER --no-git-tag-version
+
+      - name: Build application
+        run: |
+          npm run build
+          npm run build:mobile
+
+      - name: Create release archive
+        run: |
+          mkdir -p release-artifacts
+          
+          # Create source archive
+          tar -czf release-artifacts/echo-${{ needs.validate.outputs.version }}-source.tar.gz \
+            --exclude=node_modules \
+            --exclude=.git \
+            --exclude=release-artifacts \
+            .
+          
+          # Create build archive
+          tar -czf release-artifacts/echo-${{ needs.validate.outputs.version }}-build.tar.gz \
+            dist/ web/dist/ mobile/dist/
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=semver,pattern={{version}},value=${{ needs.validate.outputs.version }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ needs.validate.outputs.version }}
+            type=semver,pattern={{major}},value=${{ needs.validate.outputs.version }}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILD_VERSION=${{ needs.validate.outputs.version }}
+            BUILD_DATE=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
+            GIT_COMMIT=${{ github.sha }}
+
+      - name: Generate SBOM
+        run: |
+          # Install syft for SBOM generation
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+          
+          # Generate SBOM for the built image
+          syft ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.validate.outputs.version }} \
+            -o spdx-json=release-artifacts/echo-${{ needs.validate.outputs.version }}-sbom.spdx.json
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: release-artifacts
+          path: release-artifacts/
+
+  # Security scan
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ needs.build.outputs.image-tags }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Check for critical vulnerabilities
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ needs.build.outputs.image-tags }}
+          format: 'json'
+          output: 'trivy-results.json'
+          exit-code: '1'
+          severity: 'CRITICAL,HIGH'
+
+  # Create GitHub release
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [validate, test, build, security-scan]
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download release artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: release-artifacts
+          path: release-artifacts/
+
+      - name: Download changelog
+        uses: actions/download-artifact@v3
+        with:
+          name: changelog
+
+      - name: Create or update tag
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "${{ needs.validate.outputs.version }}" -m "Release ${{ needs.validate.outputs.version }}"
+          git push origin "${{ needs.validate.outputs.version }}"
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ needs.validate.outputs.version }}
+          release_name: Echo ${{ needs.validate.outputs.version }}
+          body: |
+            ## 🚀 Echo ${{ needs.validate.outputs.version }}
+            
+            ### 📋 Changes
+            ${{ needs.validate.outputs.changelog }}
+            
+            ### 🐳 Docker Images
+            ```bash
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.validate.outputs.version }}
+            ```
+            
+            ### 📦 Kubernetes Deployment
+            ```bash
+            kubectl apply -k https://github.com/${{ github.repository }}/k8s/overlays/production?ref=${{ needs.validate.outputs.version }}
+            ```
+            
+            ### 🔒 Security
+            - All security scans passed
+            - SBOM included in release artifacts
+            - Signed container images available
+            
+            ### 📚 Documentation
+            - [Installation Guide](https://github.com/${{ github.repository }}/blob/${{ needs.validate.outputs.version }}/README.md)
+            - [API Documentation](https://github.com/${{ github.repository }}/blob/${{ needs.validate.outputs.version }}/docs/api.md)
+            - [Deployment Guide](https://github.com/${{ github.repository }}/blob/${{ needs.validate.outputs.version }}/k8s/README.md)
+          draft: ${{ github.event.inputs.draft == 'true' }}
+          prerelease: ${{ github.event.inputs.prerelease == 'true' || contains(needs.validate.outputs.version, '-') }}
+
+      - name: Upload source archive
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: release-artifacts/echo-${{ needs.validate.outputs.version }}-source.tar.gz
+          asset_name: echo-${{ needs.validate.outputs.version }}-source.tar.gz
+          asset_content_type: application/gzip
+
+      - name: Upload build archive
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: release-artifacts/echo-${{ needs.validate.outputs.version }}-build.tar.gz
+          asset_name: echo-${{ needs.validate.outputs.version }}-build.tar.gz
+          asset_content_type: application/gzip
+
+      - name: Upload SBOM
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: release-artifacts/echo-${{ needs.validate.outputs.version }}-sbom.spdx.json
+          asset_name: echo-${{ needs.validate.outputs.version }}-sbom.spdx.json
+          asset_content_type: application/json
+
+  # Deploy to production
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [validate, release]
+    if: ${{ !contains(needs.validate.outputs.version, '-') }} # Only for stable releases
+    environment:
+      name: production
+      url: https://echo.yourdomain.com
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.0'
+
+      - name: Setup Kustomize
+        run: |
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          sudo mv kustomize /usr/local/bin/
+
+      - name: Configure kubectl
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > ~/.kube/config
+          kubectl config use-context production-cluster
+
+      - name: Update image tags
+        run: |
+          cd k8s/overlays/production
+          kustomize edit set image echo-app=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.validate.outputs.version }}
+
+      - name: Deploy to production
+        run: |
+          kubectl apply -k k8s/overlays/production
+          kubectl rollout status deployment/echo-app-prod --namespace=echo-prod --timeout=600s
+
+      - name: Run smoke tests
+        run: |
+          sleep 30
+          kubectl exec -n echo-prod deployment/echo-app-prod -- curl -f http://localhost:8080/health
+
+  # Notify stakeholders
+  notify:
+    name: Notify Release
+    runs-on: ubuntu-latest
+    needs: [validate, release, deploy-production]
+    if: always()
+    steps:
+      - name: Notify Slack
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          channel: '#releases'
+          text: |
+            🚀 Echo ${{ needs.validate.outputs.version }} has been released!
+            
+            📦 GitHub Release: ${{ needs.release.outputs.html_url }}
+            🐳 Docker Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.validate.outputs.version }}
+            🌐 Production: https://echo.yourdomain.com
+            
+            Status: ${{ job.status }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Update documentation
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Create or update release documentation
+            const fs = require('fs');
+            const version = '${{ needs.validate.outputs.version }}';
+            
+            // Update version in documentation
+            github.rest.repos.createOrUpdateFileContents({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              path: 'docs/LATEST_RELEASE.md',
+              message: `Update latest release to ${version}`,
+              content: Buffer.from(`# Latest Release: ${version}\n\nSee [releases](https://github.com/${context.repo.owner}/${context.repo.repo}/releases) for full changelog.`).toString('base64'),
+              sha: await github.rest.repos.getContent({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                path: 'docs/LATEST_RELEASE.md'
+              }).then(r => r.data.sha).catch(() => undefined)
+            });

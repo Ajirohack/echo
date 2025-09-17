@@ -6,7 +6,7 @@
  */
 
 const { expect } = require('chai');
-const sinon = require('sinon');
+// Sinon functionality replaced with Jest mocks
 const fs = require('fs');
 const path = require('path');
 

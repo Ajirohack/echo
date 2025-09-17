@@ -28,12 +28,15 @@ let completePipeline = null;
 let isCompletePipelineActive = false;
 let currentVoices = {};
 let audioPlaybackStore = new Map();
+let statusDismissBtn = null;
 
 // Initialize the application
 function initApp() {
     updateStatus('Ready to start');
     loadSettings();
     setupEventListeners();
+    wireAudioStatus();
+    checkAndShowSetupStatus();
     initializeTranslationSystem();
 }
 
@@ -84,6 +87,26 @@ function toggleModal(show) {
 async function startRecording() {
     try {
         updateStatus('Starting recording...');
+
+        // macOS permission preflight via main process IPC (if available)
+        if (window.electronAPI && window.electronAPI.permissions) {
+            try {
+                const status = await window.electronAPI.permissions.checkMicrophone();
+                if (status && status.status === 'denied') {
+                    updateStatus('Microphone access is denied. Please enable it in System Settings > Privacy & Security > Microphone.', 'warning', { sticky: true });
+                    return;
+                }
+                if (!status || status.status !== 'granted') {
+                    const req = await window.electronAPI.permissions.requestMicrophone();
+                    if (!req || !req.granted) {
+                        updateStatus('Microphone access is required. Please enable it in System Settings > Privacy & Security > Microphone.', 'warning', { sticky: true });
+                        return;
+                    }
+                }
+            } catch (e) {
+                console.warn('Permission preflight failed:', e);
+            }
+        }
 
         // Request microphone access
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -149,12 +172,11 @@ async function startRecording() {
         }
 
     } catch (error) {
-        console.error('Error accessing microphone:', error);
-        updateStatus(`Error: ${error.message}`, 'error');
-        isRecording = false;
-        recordButton.disabled = false;
-        stopButton.disabled = true;
-        recordingIndicator.style.display = 'none';
+        console.error('Error starting recording:', error);
+        const msg = (error && error.name === 'NotAllowedError')
+          ? 'Microphone permission was denied. Please enable it in System Settings > Privacy & Security > Microphone.'
+          : (error && error.message) || 'Failed to access microphone.';
+        updateStatus(msg, 'error', { sticky: true });
     }
 }
 
@@ -234,15 +256,47 @@ function updateTranslatedText(text) {
 }
 
 // Play translated audio
-function playTranslatedAudio() {
+async function playTranslatedAudio() {
     if (translatedText.textContent && translatedText.textContent !== 'Translation will appear here...') {
-        // TODO: Implement actual TTS playback
-        updateStatus('Playing translation...');
-
-        // For demo, just show a brief status update
-        setTimeout(() => {
-            updateStatus('Translation played');
-        }, 1000);
+        try {
+            updateStatus('Playing translation...');
+            
+            // Get current settings for TTS
+            const settingsResult = await window.electronAPI.settings.getAll();
+            const settings = settingsResult.success ? settingsResult.data : {};
+            
+            // Prepare TTS options
+            const ttsOptions = {
+                voice: settings.tts?.voice || 'default',
+                speed: settings.tts?.speed || 1.0,
+                pitch: settings.tts?.pitch || 0,
+                volume: settings.tts?.volume || 1.0,
+                outputDevice: settings.audio?.outputDevice || 'default'
+            };
+            
+            // Get target language from UI or settings
+            const targetLanguage = document.getElementById('targetLanguage')?.value || 
+                                 settings.translation?.targetLanguage || 'en';
+            
+            // Synthesize speech via IPC
+            const result = await window.electronAPI.tts.synthesize(
+                translatedText.textContent,
+                targetLanguage,
+                ttsOptions
+            );
+            
+            if (result.success) {
+                // Play the synthesized audio
+                await window.electronAPI.tts.play(result.audioData, ttsOptions.outputDevice);
+                updateStatus('Translation played successfully');
+            } else {
+                console.error('TTS synthesis failed:', result.error);
+                updateStatus('Failed to play translation', 'error');
+            }
+        } catch (error) {
+            console.error('Error playing translated audio:', error);
+            updateStatus('Error playing translation', 'error');
+        }
     }
 }
 
@@ -277,66 +331,98 @@ function swapLanguages() {
 }
 
 // Load settings from storage
-function loadSettings() {
-    // TODO: Load actual settings from storage
-    const defaultSettings = {
-        inputDevice: 'default',
-        outputDevice: 'default',
-        translationService: 'google',
-        googleApiKey: '',
-        deeplApiKey: '',
-        azureKey: '',
-        azureRegion: ''
-    };
+async function loadSettings() {
+    try {
+        // Load actual settings from storage via IPC
+        const result = await window.electronAPI.settings.getAll();
+        
+        if (!result.success) {
+            console.error('Failed to load settings:', result.error);
+            updateStatus('Failed to load settings', 'error');
+            return;
+        }
+        
+        const settings = result.data;
+        
+        // Apply audio settings to UI
+        const inputDeviceElement = document.getElementById('inputDevice');
+        if (inputDeviceElement) inputDeviceElement.value = settings.audio?.inputDevice || 'default';
 
-    // Apply settings to UI
-    const inputDeviceElement = document.getElementById('inputDevice');
-    if (inputDeviceElement) inputDeviceElement.value = defaultSettings.inputDevice;
+        const outputDeviceElement = document.getElementById('outputDevice');
+        if (outputDeviceElement) outputDeviceElement.value = settings.audio?.outputDevice || 'default';
 
-    const outputDeviceElement = document.getElementById('outputDevice');
-    if (outputDeviceElement) outputDeviceElement.value = defaultSettings.outputDevice;
+        // Apply translation settings to UI
+        const translationServiceElement = document.getElementById('translationService');
+        if (translationServiceElement) translationServiceElement.value = settings.translation?.defaultService || 'google';
 
-    const translationServiceElement = document.getElementById('translationService');
-    if (translationServiceElement) translationServiceElement.value = defaultSettings.translationService;
+        // Apply service API keys to UI
+        const googleApiKeyElement = document.getElementById('googleApiKey');
+        if (googleApiKeyElement) googleApiKeyElement.value = settings.services?.google?.apiKey || '';
 
-    const googleApiKeyElement = document.getElementById('googleApiKey');
-    if (googleApiKeyElement) googleApiKeyElement.value = defaultSettings.googleApiKey;
+        const deeplApiKeyElement = document.getElementById('deeplApiKey');
+        if (deeplApiKeyElement) deeplApiKeyElement.value = settings.services?.deepl?.apiKey || '';
 
-    const deeplApiKeyElement = document.getElementById('deeplApiKey');
-    if (deeplApiKeyElement) deeplApiKeyElement.value = defaultSettings.deeplApiKey;
+        const azureKeyElement = document.getElementById('azureKey');
+        if (azureKeyElement) azureKeyElement.value = settings.services?.azure?.apiKey || '';
 
-    const azureKeyElement = document.getElementById('azureKey');
-    if (azureKeyElement) azureKeyElement.value = defaultSettings.azureKey;
+        const azureRegionElement = document.getElementById('azureRegion');
+        if (azureRegionElement) azureRegionElement.value = settings.services?.azure?.region || 'eastus';
 
-    const azureRegionElement = document.getElementById('azureRegion');
-    if (azureRegionElement) azureRegionElement.value = defaultSettings.azureRegion;
-
-    // TODO: Load audio devices
-    updateAudioDevices();
+        // Load audio devices
+        updateAudioDevices();
+        
+        console.log('Settings loaded successfully');
+    } catch (error) {
+        console.error('Error loading settings:', error);
+        updateStatus('Error loading settings', 'error');
+    }
 }
 
 // Save settings to storage
 async function saveSettings() {
-    const settings = {
-        inputDevice: document.getElementById('inputDevice')?.value || 'default',
-        outputDevice: document.getElementById('outputDevice')?.value || 'default',
-        translationService: document.getElementById('translationService')?.value || 'google',
-        googleApiKey: document.getElementById('googleApiKey')?.value || '',
-        deeplApiKey: document.getElementById('deeplApiKey')?.value || '',
-        azureKey: document.getElementById('azureKey')?.value || '',
-        azureRegion: document.getElementById('azureRegion')?.value || ''
-    };
+    try {
+        // Collect settings from UI elements
+        const settingsUpdates = {
+            audio: {
+                inputDevice: document.getElementById('inputDevice')?.value || 'default',
+                outputDevice: document.getElementById('outputDevice')?.value || 'default'
+            },
+            translation: {
+                defaultService: document.getElementById('translationService')?.value || 'google'
+            },
+            services: {
+                google: {
+                    apiKey: document.getElementById('googleApiKey')?.value || ''
+                },
+                deepl: {
+                    apiKey: document.getElementById('deeplApiKey')?.value || ''
+                },
+                azure: {
+                    apiKey: document.getElementById('azureKey')?.value || '',
+                    region: document.getElementById('azureRegion')?.value || 'eastus'
+                }
+            }
+        };
 
-    // TODO: Save settings to secure storage
-    console.log('Saving settings:', settings);
-
-    // Show success message
-    updateStatus('Settings saved successfully');
-
-    // Close the modal after a short delay
-    setTimeout(() => {
-        toggleModal(false);
-    }, 1000);
+        // Save settings via IPC
+        const result = await window.electronAPI.settings.update(settingsUpdates);
+        
+        if (result.success) {
+            console.log('Settings saved successfully');
+            updateStatus('Settings saved successfully');
+            
+            // Close the modal after a short delay
+            setTimeout(() => {
+                toggleModal(false);
+            }, 1000);
+        } else {
+            console.error('Failed to save settings:', result.error);
+            updateStatus('Failed to save settings', 'error');
+        }
+    } catch (error) {
+        console.error('Error saving settings:', error);
+        updateStatus('Error saving settings', 'error');
+    }
 }
 
 // Update audio device lists
@@ -380,20 +466,118 @@ async function updateAudioDevices() {
     }
 }
 
-// Update status message
-function updateStatus(message, type = 'info') {
-    statusMessage.textContent = message;
+// Update status message (refactored to a single top-level function)
+function updateStatus(message, type = 'info', opts = {}) {
+    const statusMessage = document.getElementById('statusMessage');
+    if (!statusMessage) return;
 
-    // Clear any previous status classes
+    // Lazily create a dismiss button and attach once
+    if (!statusDismissBtn) {
+        statusDismissBtn = document.createElement('button');
+        statusDismissBtn.className = 'status-dismiss';
+        statusDismissBtn.title = 'Dismiss';
+        statusDismissBtn.textContent = '×';
+        statusDismissBtn.style.marginLeft = '8px';
+        statusDismissBtn.style.display = 'none';
+        statusDismissBtn.addEventListener('click', () => {
+            statusMessage.className = 'status-message';
+            statusMessage.textContent = '';
+            statusDismissBtn.style.display = 'none';
+        });
+        statusMessage.appendChild(statusDismissBtn);
+    }
+
+    const sticky = opts.sticky === true || type === 'error' || type === 'warning';
+
+    // Reset classes
     statusMessage.className = 'status-message';
 
-    // Add appropriate class based on message type
+    // Set text
+    statusMessage.textContent = message || '';
+
+    // Apply type class
     if (type === 'error') {
         statusMessage.classList.add('error');
     } else if (type === 'success') {
         statusMessage.classList.add('success');
     } else if (type === 'warning') {
         statusMessage.classList.add('warning');
+    }
+
+    // Show/hide dismiss button
+    if (statusDismissBtn) {
+        statusDismissBtn.style.display = sticky ? 'inline-block' : 'none';
+        if (sticky && !statusMessage.contains(statusDismissBtn)) {
+            statusMessage.appendChild(statusDismissBtn);
+        }
+    }
+
+    // Auto-clear non-sticky info after a delay
+    if (!sticky && type === 'info' && opts.autoClear !== false) {
+        const timeout = typeof opts.timeout === 'number' ? opts.timeout : 3000;
+        setTimeout(() => {
+            // Only clear if it wasn't turned into an error/warning since
+            if (!statusMessage.classList.contains('error') && !statusMessage.classList.contains('warning')) {
+                statusMessage.className = 'status-message';
+                statusMessage.textContent = '';
+            }
+        }, timeout);
+    }
+}
+
+// Wire audio service device/error events to the banner (one-time)
+let audioStatusWired = false;
+function wireAudioStatus() {
+    if (audioStatusWired) return;
+    audioStatusWired = true;
+    try {
+        const audioService = require('./src/renderer/services/audioService');
+        if (!audioService) return;
+
+        // Devices updated
+        audioService.on('devicesUpdated', (devices) => {
+            const inCount = (devices.inputs || []).length;
+            const outCount = (devices.outputs || []).length;
+            if (inCount === 0) {
+                updateStatus('No input (microphone) devices detected. Please connect or enable a microphone.', 'warning', { sticky: true });
+            } else if (outCount === 0) {
+                updateStatus('No output (speaker) devices detected. Please connect or enable an output device.', 'warning', { sticky: true });
+            } else {
+                updateStatus(`Devices ready: ${inCount} inputs, ${outCount} outputs.`);
+            }
+        });
+
+        // Errors from main/audio manager
+        audioService.on('error', (payload) => {
+            const msg = typeof payload === 'string' ? payload : (payload && payload.error) || 'Audio error';
+            updateStatus(`Audio error: ${msg}`, 'error', { sticky: true });
+        });
+    } catch (e) {
+        console.warn('Audio service wiring failed:', e);
+    }
+}
+
+// Check setup status on startup and surface warnings
+async function checkAndShowSetupStatus() {
+    try {
+        if (!window.electronAPI || !window.electronAPI.getSetupStatus) return;
+        const status = await window.electronAPI.getSetupStatus();
+        if (status && status.success === false) {
+            updateStatus(`Setup status check failed: ${status.error || 'Unknown error'}`, 'warning', { sticky: true });
+            return;
+        }
+        const missing = [];
+        if (status && status.virtualAudio === false) missing.push('virtual audio not installed/configured');
+        if (status && status.communicationApps === false) missing.push('no supported communication app detected');
+        if (status && status.configuration === false) missing.push('configuration files missing');
+
+        if (missing.length) {
+            updateStatus(`Setup incomplete: ${missing.join('; ')}. See Preferences or the Troubleshooting Guide.`, 'warning', { sticky: true });
+        } else {
+            updateStatus('Environment looks good. Ready to start.', 'success', { timeout: 2500 });
+        }
+    } catch (e) {
+        console.warn('Setup status check failed:', e);
     }
 }
 
@@ -1386,8 +1570,6 @@ function handleLanguageChange() {
 
     // Update available voices
     updateVoiceSelectors();
-
-    updateStatus(`Languages changed: ${sourceLang} → ${targetLang}`);
 }
 
 // Handle voice change
@@ -1498,3 +1680,87 @@ function handleCompletePipelineLanguagesChanged(data) {
     // Update voices
     updateVoiceSelectors();
 }
+
+const { ipcRenderer } = require('electron');
+
+window.electronAPI = {
+  // Setup methods
+  async autoConfigureApps() {
+    return await ipcRenderer.invoke('setup:performOneClick');
+  },
+  async getSetupStatus() {
+    return await ipcRenderer.invoke('setup:getStatus');
+  },
+  openTroubleshootingGuide() {
+    ipcRenderer.invoke('setup:openTroubleshootingGuide');
+  },
+
+  // Permissions API (macOS specific behavior lives in main process)
+  permissions: {
+    async checkMicrophone() {
+      return await ipcRenderer.invoke('permissions:checkMicrophone');
+    },
+    async requestMicrophone() {
+      return await ipcRenderer.invoke('permissions:requestMicrophone');
+    },
+    async openSystemSettings() {
+      return await ipcRenderer.invoke('permissions:openSystemSettings');
+    }
+  },
+  
+  // Settings API
+  settings: {
+    async getAll() {
+      return await ipcRenderer.invoke('settings:getAll');
+    },
+    async get(key) {
+      return await ipcRenderer.invoke('settings:get', key);
+    },
+    async update(settings) {
+      return await ipcRenderer.invoke('settings:update', settings);
+    },
+    async reset() {
+      return await ipcRenderer.invoke('settings:reset');
+    },
+    async import(filePath) {
+      return await ipcRenderer.invoke('settings:import', filePath);
+    },
+    async export(filePath) {
+      return await ipcRenderer.invoke('settings:export', filePath);
+    },
+    async validate(settings) {
+      return await ipcRenderer.invoke('settings:validate', settings);
+    }
+  },
+  
+  // TTS API
+  tts: {
+    async getVoices(language) {
+      return await ipcRenderer.invoke('tts:getVoices', language);
+    },
+    async synthesize(text, language, options) {
+      return await ipcRenderer.invoke('tts:synthesize', text, language, options);
+    },
+    async play(audioData, outputDevice) {
+      return await ipcRenderer.invoke('tts:play', audioData, outputDevice);
+    },
+    async speak(text, language, options) {
+      return await ipcRenderer.invoke('tts:speak', text, language, options);
+    },
+    async stop() {
+      return await ipcRenderer.invoke('tts:stop');
+    },
+    async getConfig() {
+      return await ipcRenderer.invoke('tts:getConfig');
+    },
+    async updateConfig(config) {
+      return await ipcRenderer.invoke('tts:updateConfig', config);
+    },
+    async getActiveVoice(language) {
+      return await ipcRenderer.invoke('tts:getActiveVoice', language);
+    },
+    async setDefaultVoice(language, voiceId, provider) {
+      return await ipcRenderer.invoke('tts:setDefaultVoice', language, voiceId, provider);
+    }
+  }
+};

@@ -1,5 +1,5 @@
 const { expect } = require('chai');
-const sinon = require('sinon');
+// Sinon functionality replaced with Jest mocks
 const nock = require('nock');
 const axios = require('axios');
 

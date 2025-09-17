@@ -1,5 +1,4 @@
 // Test utility functions
-const sinon = require('sinon');
 const React = require('react');
 
 // Mock translation function for testing
@@ -8,25 +7,25 @@ const mockT = (key) => key;
 // Mock audio context for testing
 const createMockAudioContext = () => {
   const mock = {
-    suspend: sinon.stub().resolves(undefined),
-    close: sinon.stub().resolves(undefined),
-    resume: sinon.stub().resolves(undefined),
+    suspend: jest.fn().mockResolvedValue(undefined),
+    close: jest.fn().mockResolvedValue(undefined),
+    resume: jest.fn().mockResolvedValue(undefined),
     state: 'suspended',
     destination: {
-      connect: sinon.stub(),
-      disconnect: sinon.stub(),
+      connect: jest.fn(),
+      disconnect: jest.fn(),
     },
-    createMediaStreamSource: sinon.stub().returns({
-      connect: sinon.stub(),
-      disconnect: sinon.stub(),
+    createMediaStreamSource: jest.fn().mockReturnValue({
+      connect: jest.fn(),
+      disconnect: jest.fn(),
     }),
-    createAnalyser: sinon.stub().returns({
-      connect: sinon.stub(),
-      disconnect: sinon.stub(),
+    createAnalyser: jest.fn().mockReturnValue({
+      connect: jest.fn(),
+      disconnect: jest.fn(),
     }),
-    createScriptProcessor: sinon.stub().returns({
-      connect: sinon.stub(),
-      disconnect: sinon.stub(),
+    createScriptProcessor: jest.fn().mockReturnValue({
+      connect: jest.fn(),
+      disconnect: jest.fn(),
     }),
   };
   
@@ -35,20 +34,20 @@ const createMockAudioContext = () => {
 
 // Mock MediaStream for testing
 const createMockMediaStream = () => ({
-  getTracks: sinon.stub().returns([{ stop: sinon.stub() }]),
-  getAudioTracks: sinon.stub().returns([{ enabled: true, stop: sinon.stub() }]),
-  getVideoTracks: sinon.stub().returns([]),
-  addTrack: sinon.stub(),
-  removeTrack: sinon.stub(),
+  getTracks: jest.fn().mockReturnValue([{ stop: jest.fn() }]),
+  getAudioTracks: jest.fn().mockReturnValue([{ enabled: true, stop: jest.fn() }]),
+  getVideoTracks: jest.fn().mockReturnValue([]),
+  addTrack: jest.fn(),
+  removeTrack: jest.fn(),
 });
 
 // Mock ResizeObserver for testing
 class MockResizeObserver {
   constructor(callback) {
     this.callback = callback;
-    this.observe = sinon.stub();
-    this.unobserve = sinon.stub();
-    this.disconnect = sinon.stub();
+    this.observe = jest.fn();
+    this.unobserve = jest.fn();
+    this.disconnect = jest.fn();
   }
 }
 
@@ -65,13 +64,15 @@ module.exports = {
   createMockMediaStream,
   MockResizeObserver,
   
-  // Re-export commonly used testing utilities
-  ...require('sinon'),
+  // Jest testing utilities
+  fn: jest.fn,
+  spyOn: jest.spyOn,
+  mock: jest.mock,
   
   // Helper to create a basic component mock
   createComponentMock: (name, implementation = {}) => {
     return {
-      [name]: sinon.stub().callsFake((props) => {
+      [name]: jest.fn().mockImplementation((props) => {
         return React.createElement(name, props, props.children);
       }),
       [`${name}DisplayName`]: name,
@@ -115,11 +116,11 @@ module.exports = {
   
   // Helper to mock timers
   useFakeTimers: () => {
-    const clock = sinon.useFakeTimers();
+    jest.useFakeTimers();
     return {
-      tick: (ms) => clock.tick(ms),
-      restore: () => clock.restore(),
-      now: () => clock.now,
+      tick: (ms) => jest.advanceTimersByTime(ms),
+      restore: () => jest.useRealTimers(),
+      now: () => Date.now(),
     };
   },
   
@@ -130,13 +131,13 @@ module.exports = {
       ok,
       status,
       statusText,
-      json: sinon.stub().resolves(response),
-      text: sinon.stub().resolves(JSON.stringify(response)),
-      clone: sinon.stub().returnsThis(),
+      json: jest.fn().mockResolvedValue(response),
+      text: jest.fn().mockResolvedValue(JSON.stringify(response)),
+      clone: jest.fn().mockReturnThis(),
       ...options.response
     };
     
-    global.fetch = sinon.stub().resolves(mockResponse);
+    global.fetch = jest.fn().mockResolvedValue(mockResponse);
     return global.fetch;
   },
 };

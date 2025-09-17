@@ -5,19 +5,18 @@
  * including WCAG 2.1 compliance.
  */
 
-const { expect } = require('chai');
 const path = require('path');
 const { AxePuppeteer } = require('@axe-core/puppeteer');
 const puppeteer = require('puppeteer');
 
-describe('Accessibility Tests', function () {
+describe('Accessibility Tests', () => {
     // These tests can take longer
-    this.timeout(20000);
+    jest.setTimeout(20000);
 
     let browser;
     let page;
 
-    before(async () => {
+    beforeAll(async () => {
         // Launch browser
         browser = await puppeteer.launch({
             headless: true, // Run headless for CI
@@ -34,7 +33,7 @@ describe('Accessibility Tests', function () {
         });
     });
 
-    after(async () => {
+    afterAll(async () => {
         // Close browser
         if (browser) {
             await browser.close();
@@ -81,7 +80,7 @@ describe('Accessibility Tests', function () {
             const criticalViolations = results.violations.filter(v => v.impact === 'critical');
 
             // Should have no critical violations
-            expect(criticalViolations.length).to.equal(0, 'Critical accessibility violations found');
+            expect(criticalViolations.length).toBe(0); // Critical accessibility violations found
         });
 
         it('should have appropriate ARIA attributes', async () => {
@@ -96,7 +95,7 @@ describe('Accessibility Tests', function () {
             const ariaViolations = results.violations.filter(v => v.id.startsWith('aria-'));
 
             // Should have no ARIA violations
-            expect(ariaViolations.length).to.equal(0, 'ARIA violations found');
+            expect(ariaViolations.length).toBe(0); // ARIA violations found
         });
 
         it('should have sufficient color contrast', async () => {
@@ -111,7 +110,7 @@ describe('Accessibility Tests', function () {
             const contrastViolations = results.violations.filter(v => v.id === 'color-contrast');
 
             // Should have no contrast violations
-            expect(contrastViolations.length).to.equal(0, 'Color contrast issues found');
+            expect(contrastViolations.length).toBe(0); // Color contrast issues found
         });
     });
 
@@ -143,9 +142,7 @@ describe('Accessibility Tests', function () {
                     control.hasAriaLabel ||
                     control.hasAriaLabelledBy;
 
-                expect(hasAccessibleLabel).to.be.true(
-                    `Form control ${control.type}#${control.id} has no accessible label`
-                );
+                expect(hasAccessibleLabel).toBe(true); // Form control should have accessible label
             }
         });
 
@@ -173,7 +170,7 @@ describe('Accessibility Tests', function () {
             }
 
             // Should have focused several elements
-            expect(focusedElements.size).to.be.greaterThan(3, 'Not enough focusable elements found');
+            expect(focusedElements.size).toBeGreaterThan(3); // Not enough focusable elements found
         });
     });
 
@@ -200,7 +197,7 @@ describe('Accessibility Tests', function () {
                 return el.getAttribute('aria-live') === 'polite';
             });
 
-            expect(hasAriaLive).to.be.true('Translation results should have aria-live attribute');
+            expect(hasAriaLive).toBe(true); // Translation results should have aria-live attribute
 
             // Check for appropriate heading structure
             const headingsStructure = await page.$$eval('h1, h2, h3, h4, h5, h6', headings => {
@@ -222,7 +219,7 @@ describe('Accessibility Tests', function () {
                 previousLevel = heading.level;
             }
 
-            expect(headingLevelsValid).to.be.true('Heading structure should not skip levels');
+            expect(headingLevelsValid).toBe(true); // Heading structure should not skip levels
         });
     });
 
@@ -247,7 +244,7 @@ describe('Accessibility Tests', function () {
 
             // Should have no critical violations
             const criticalViolations = results.violations.filter(v => v.impact === 'critical');
-            expect(criticalViolations.length).to.equal(0, 'Critical accessibility violations found on mobile viewport');
+            expect(criticalViolations.length).toBe(0); // Critical accessibility violations found on mobile viewport
         });
 
         it('should maintain touch target sizes on mobile', async () => {
@@ -293,7 +290,7 @@ describe('Accessibility Tests', function () {
                 target => !exemptTypes.includes(target.tag)
             );
 
-            expect(nonExemptSmallTargets.length).to.equal(0, 'Touch targets too small for mobile');
+            expect(nonExemptSmallTargets.length).toBe(0); // Touch targets too small for mobile
         });
     });
 });

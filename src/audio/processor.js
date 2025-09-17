@@ -28,7 +28,7 @@ class AudioProcessor {
     const {
       sampleRate = this.sampleRate,
       channels = this.channels,
-      bitDepth = this.bitDepth
+      bitDepth = this.bitDepth,
     } = options;
 
     if (!audioData || !Buffer.isBuffer(audioData) || audioData.length === 0) {
@@ -38,16 +38,25 @@ class AudioProcessor {
     return new Promise((resolve, reject) => {
       try {
         const args = [
-          '-f', 's16le',
-          '-ar', '44100',  // Assume input is 44.1kHz if not specified
-          '-ac', '2',      // Assume stereo input if not specified
-          '-i', 'pipe:0',
-          '-f', 's16le',
-          '-ar', sampleRate,
-          '-ac', channels,
-          '-sample_fmt', `s${bitDepth}`,
-          '-acodec', 'pcm_s16le',
-          'pipe:1'
+          '-f',
+          's16le',
+          '-ar',
+          '44100', // Assume input is 44.1kHz if not specified
+          '-ac',
+          '2', // Assume stereo input if not specified
+          '-i',
+          'pipe:0',
+          '-f',
+          's16le',
+          '-ar',
+          sampleRate,
+          '-ac',
+          channels,
+          '-sample_fmt',
+          `s${bitDepth}`,
+          '-acodec',
+          'pcm_s16le',
+          'pipe:1',
         ];
 
         const ffmpeg = spawn('ffmpeg', args, { stdio: ['pipe', 'pipe', 'inherit'] });
@@ -91,13 +100,19 @@ class AudioProcessor {
     return new Promise((resolve, reject) => {
       try {
         const args = [
-          '-f', 's16le',
-          '-ar', this.sampleRate,
-          '-ac', this.channels,
-          '-i', 'pipe:0',
-          '-af', `volume=${targetLevel}dB:precision=fixed`,
-          '-f', 's16le',
-          'pipe:1'
+          '-f',
+          's16le',
+          '-ar',
+          this.sampleRate,
+          '-ac',
+          this.channels,
+          '-i',
+          'pipe:0',
+          '-af',
+          `volume=${targetLevel}dB:precision=fixed`,
+          '-f',
+          's16le',
+          'pipe:1',
         ];
 
         const ffmpeg = spawn('ffmpeg', args, { stdio: ['pipe', 'pipe', 'inherit'] });
@@ -142,13 +157,19 @@ class AudioProcessor {
     return new Promise((resolve, reject) => {
       try {
         const args = [
-          '-f', 's16le',
-          '-ar', this.sampleRate,
-          '-ac', this.channels,
-          '-i', 'pipe:0',
-          '-af', `silenceremove=start_periods=1:start_silence=${silenceDuration}:start_threshold=${silenceThreshold}dB:detection=peak`,
-          '-f', 's16le',
-          'pipe:1'
+          '-f',
+          's16le',
+          '-ar',
+          this.sampleRate,
+          '-ac',
+          this.channels,
+          '-i',
+          'pipe:0',
+          '-af',
+          `silenceremove=start_periods=1:start_silence=${silenceDuration}:start_threshold=${silenceThreshold}dB:detection=peak`,
+          '-f',
+          's16le',
+          'pipe:1',
         ];
 
         const ffmpeg = spawn('ffmpeg', args, { stdio: ['pipe', 'pipe', 'inherit'] });
@@ -196,7 +217,7 @@ class AudioProcessor {
           callback(error);
         }
       },
-      ...options
+      ...options,
     });
 
     return transform;
@@ -208,20 +229,30 @@ class AudioProcessor {
    * @returns {Promise<number>} - Duration in seconds
    */
   async getDuration(audioData) {
-    return new Promise((resolve, reject) => {
+    // Import TempFileManager
+    const TempFileManager = require('../utils/TempFileManager');
+    const tempFileManager = new TempFileManager();
+
+    let tempFile;
+    return new Promise(async (resolve, reject) => {
       try {
-        const tempFile = path.join(os.tmpdir(), `temp_audio_${Date.now()}.wav`);
-        
-        // Write the audio data to a temporary file
-        fs.writeFileSync(tempFile, audioData);
-        
+        // Create temp file using TempFileManager
+        tempFile = await tempFileManager.createTempFile(audioData, 'audio_processor', 'wav');
+
         // Use ffprobe to get the duration
-        const ffprobe = spawn('ffprobe', [
-          '-v', 'error',
-          '-show_entries', 'format=duration',
-          '-of', 'default=noprint_wrappers=1:nokey=1',
-          tempFile
-        ], { stdio: ['ignore', 'pipe', 'inherit'] });
+        const ffprobe = spawn(
+          'ffprobe',
+          [
+            '-v',
+            'error',
+            '-show_entries',
+            'format=duration',
+            '-of',
+            'default=noprint_wrappers=1:nokey=1',
+            tempFile,
+          ],
+          { stdio: ['ignore', 'pipe', 'inherit'] }
+        );
 
         let duration = 0;
         let output = '';
@@ -231,27 +262,28 @@ class AudioProcessor {
         });
 
         ffprobe.on('close', (code) => {
-          // Clean up the temporary file
-          fs.unlink(tempFile, () => {});
-          
+          // Clean up the temporary file using TempFileManager
+          tempFileManager.removeFile(tempFile);
+
           if (code !== 0) {
             reject(new Error(`Failed to get audio duration: process exited with code ${code}`));
             return;
           }
-          
+
           const match = output.match(/\d+\.\d+/);
           if (match) {
             duration = parseFloat(match[0]);
           }
-          
+
           resolve(duration);
         });
-        
+
         ffprobe.on('error', (error) => {
-          fs.unlink(tempFile, () => {});
+          tempFileManager.removeFile(tempFile);
           reject(new Error(`Failed to get audio duration: ${error.message}`));
         });
       } catch (error) {
+        if (tempFile) tempFileManager.removeFile(tempFile);
         reject(new Error(`Failed to process audio duration: ${error.message}`));
       }
     });

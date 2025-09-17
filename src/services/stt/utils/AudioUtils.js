@@ -7,6 +7,7 @@ const { v4: uuidv4 } = require('uuid');
 const ffmpeg = require('fluent-ffmpeg');
 const wav = require('wav');
 const logger = require('../../../utils/logger');
+const tempFileManager = require('../../../utils/TempFileManager');
 
 const execAsync = promisify(exec);
 
@@ -16,17 +17,11 @@ const execAsync = promisify(exec);
 class AudioUtils {
   constructor(config = {}) {
     this.config = {
-      tempDir: path.join(require('os').tmpdir(), 'universal-translator', 'audio'),
       ffmpegPath: 'ffmpeg',
       ffprobePath: 'ffprobe',
       maxFileSize: 100 * 1024 * 1024, // 100MB
-      ...config
+      ...config,
     };
-
-    // Ensure temp directory exists
-    if (!fs.existsSync(this.config.tempDir)) {
-      fs.mkdirSync(this.config.tempDir, { recursive: true });
-    }
 
     // Set ffmpeg paths if provided
     if (this.config.ffmpegPath) {
@@ -63,7 +58,7 @@ class AudioUtils {
           }
 
           // Extract relevant audio stream info
-          const audioStream = metadata.streams.find(s => s.codec_type === 'audio');
+          const audioStream = metadata.streams.find((s) => s.codec_type === 'audio');
           if (!audioStream) {
             return reject(new Error('No audio stream found in the input'));
           }
@@ -76,7 +71,7 @@ class AudioUtils {
             sampleRate: audioStream.sample_rate ? parseInt(audioStream.sample_rate) : 0,
             channels: audioStream.channels || 1,
             codec: audioStream.codec_name,
-            raw: metadata
+            raw: metadata,
           });
         });
       });
@@ -105,7 +100,7 @@ class AudioUtils {
       normalize = false,
       trimSilence = false,
       silenceThreshold = -50,
-      silenceDuration = 0.5
+      silenceDuration = 0.5,
     } = options;
 
     let tempInputPath;
@@ -121,10 +116,11 @@ class AudioUtils {
         throw new Error('Invalid input: must be a file path or buffer');
       }
 
-      // Create output path
-      tempOutputPath = path.join(
-        this.config.tempDir,
-        `${uuidv4()}.${format}`
+      // Create output path using TempFileManager
+      tempOutputPath = await tempFileManager.createTempFile(
+        Buffer.from(''),
+        'audio-convert',
+        format
       );
 
       // Build ffmpeg command
@@ -132,27 +128,29 @@ class AudioUtils {
 
       // Audio filters
       const filters = [];
-      
+
       // Volume adjustment
       if (volume !== 1.0) {
         filters.push(`volume=${volume}`);
       }
-      
+
       // Normalization (loudnorm filter)
       if (normalize) {
         filters.push('loudnorm=I=-16:TP=-1.5:LRA=11');
       }
-      
+
       // Silence trimming
       if (trimSilence) {
-        filters.push(`silenceremove=start_periods=1:start_threshold=${silenceThreshold}dB:start_silence=0.1`);
+        filters.push(
+          `silenceremove=start_periods=1:start_threshold=${silenceThreshold}dB:start_silence=0.1`
+        );
       }
-      
+
       // Apply filters if any
       if (filters.length > 0) {
         command.audioFilters(filters.join(','));
       }
-      
+
       // Set output options
       command
         .audioChannels(channels)
@@ -160,16 +158,16 @@ class AudioUtils {
         .audioCodec(codec)
         .outputOptions(['-f', format])
         .output(tempOutputPath);
-      
+
       // Set start time and duration if specified
       if (start !== undefined) {
         command.seekInput(start);
       }
-      
+
       if (duration !== undefined) {
         command.duration(duration);
       }
-      
+
       // Set bit depth for PCM formats
       if (format === 'wav' || format === 'pcm') {
         command.outputOptions(['-sample_fmt', `s${bitDepth}le`]);
@@ -192,23 +190,23 @@ class AudioUtils {
 
       // Read the output file
       const outputBuffer = await fs.promises.readFile(tempOutputPath);
-      
+
       // Clean up
       if (tempInputPath && tempInputPath !== input) {
-        await fs.promises.unlink(tempInputPath).catch(() => {});
+        await tempFileManager.removeFile(tempInputPath).catch(() => {});
       }
-      await fs.promises.unlink(tempOutputPath).catch(() => {});
-      
+      await tempFileManager.removeFile(tempOutputPath).catch(() => {});
+
       return outputBuffer;
     } catch (error) {
       // Clean up temp files on error
       if (tempInputPath && tempInputPath !== input) {
-        await fs.promises.unlink(tempInputPath).catch(() => {});
+        await tempFileManager.removeFile(tempInputPath).catch(() => {});
       }
       if (tempOutputPath) {
-        await fs.promises.unlink(tempOutputPath).catch(() => {});
+        await tempFileManager.removeFile(tempOutputPath).catch(() => {});
       }
-      
+
       logger.error('Error converting audio:', error);
       throw error;
     }
@@ -227,14 +225,14 @@ class AudioUtils {
       sampleRate = 16000,
       channels = 1,
       bitDepth = 16,
-      overlap = 0.5 // seconds
+      overlap = 0.5, // seconds
     } = options;
 
     try {
       // Get audio info
       const info = await this.getAudioInfo(input);
       const duration = info.duration;
-      
+
       if (!duration || duration <= 0) {
         throw new Error('Invalid audio duration');
       }
@@ -242,10 +240,10 @@ class AudioUtils {
       // Calculate chunks
       const chunks = [];
       let start = 0;
-      
+
       while (start < duration) {
         const end = Math.min(start + chunkDuration, duration);
-        
+
         // Convert the chunk
         const chunkBuffer = await this.convertAudio(input, {
           start,
@@ -253,25 +251,26 @@ class AudioUtils {
           format,
           sampleRate,
           channels,
-          bitDepth
+          bitDepth,
         });
-        
+
         chunks.push({
           buffer: chunkBuffer,
           start,
           end,
-          duration: end - start
+          duration: end - start,
         });
-        
+
         // Move to next chunk with overlap
         start = end - overlap;
-        
+
         // Break if we've reached the end
-        if (start >= duration - 0.1) { // Small threshold to avoid floating point issues
+        if (start >= duration - 0.1) {
+          // Small threshold to avoid floating point issues
           break;
         }
       }
-      
+
       return chunks;
     } catch (error) {
       logger.error('Error splitting audio:', error);
@@ -295,28 +294,24 @@ class AudioUtils {
       return buffers[0];
     }
 
-    const tempDir = path.join(this.config.tempDir, 'merge');
-    const fileListPath = path.join(tempDir, 'filelist.txt');
-    const outputPath = path.join(tempDir, `merged-${Date.now()}.wav`);
-    
+    // Create temporary files for merging
+    const fileListPath = await tempFileManager.createTempFile('', 'merge-list', 'txt');
+    const outputPath = await tempFileManager.createTempFile(Buffer.from(''), 'merged-audio', 'wav');
+
     try {
-      // Create temp directory
-      if (!fs.existsSync(tempDir)) {
-        fs.mkdirSync(tempDir, { recursive: true });
-      }
-      
+      // Using TempFileManager for all temporary files
+
       // Write each buffer to a temporary file
       const tempFiles = [];
       for (let i = 0; i < buffers.length; i++) {
-        const tempPath = path.join(tempDir, `temp-${i}.wav`);
-        await fs.promises.writeFile(tempPath, buffers[i]);
+        const tempPath = await tempFileManager.createTempFile(buffers[i], `merge-part-${i}`, 'wav');
         tempFiles.push(tempPath);
       }
-      
+
       // Create a file list for ffmpeg concat
-      const fileList = tempFiles.map(file => `file '${file}'`).join('\n');
+      const fileList = tempFiles.map((file) => `file '${file}'`).join('\n');
       await fs.promises.writeFile(fileListPath, fileList);
-      
+
       // Merge using ffmpeg concat
       await new Promise((resolve, reject) => {
         ffmpeg()
@@ -334,33 +329,29 @@ class AudioUtils {
             reject(new Error(`FFmpeg concat error: ${err.message}`));
           });
       });
-      
+
       // Read the merged file
       const mergedBuffer = await fs.promises.readFile(outputPath);
-      
+
       // Clean up
       await Promise.all([
-        ...tempFiles.map(file => fs.promises.unlink(file).catch(() => {})),
-        fs.promises.unlink(fileListPath).catch(() => {}),
-        fs.promises.unlink(outputPath).catch(() => {})
+        ...tempFiles.map((file) => tempFileManager.removeFile(file).catch(() => {})),
+        tempFileManager.removeFile(fileListPath).catch(() => {}),
+        tempFileManager.removeFile(outputPath).catch(() => {}),
       ]);
-      
+
       return mergedBuffer;
     } catch (error) {
       logger.error('Error merging audio:', error);
-      
+
       // Clean up any remaining files
       try {
-        if (fs.existsSync(fileListPath)) {
-          await fs.promises.unlink(fileListPath).catch(() => {});
-        }
-        if (fs.existsSync(outputPath)) {
-          await fs.promises.unlink(outputPath).catch(() => {});
-        }
+        await tempFileManager.removeFile(fileListPath).catch(() => {});
+        await tempFileManager.removeFile(outputPath).catch(() => {});
       } catch (cleanupError) {
         logger.error('Error cleaning up after merge error:', cleanupError);
       }
-      
+
       throw error;
     }
   }
@@ -374,7 +365,7 @@ class AudioUtils {
   async normalizeAudio(buffer, options = {}) {
     return this.convertAudio(buffer, {
       ...options,
-      normalize: true
+      normalize: true,
     });
   }
 
@@ -389,7 +380,7 @@ class AudioUtils {
       ...options,
       trimSilence: true,
       silenceThreshold: options.silenceThreshold || -50,
-      silenceDuration: options.silenceDuration || 0.5
+      silenceDuration: options.silenceDuration || 0.5,
     });
   }
 
@@ -398,13 +389,7 @@ class AudioUtils {
    * @private
    */
   async _bufferToTempFile(buffer, extension = 'wav') {
-    const tempPath = path.join(
-      this.config.tempDir,
-      `${uuidv4()}.${extension}`
-    );
-    
-    await fs.promises.writeFile(tempPath, buffer);
-    return tempPath;
+    return tempFileManager.createTempFile(buffer, 'audio', extension);
   }
 
   /**
@@ -412,16 +397,8 @@ class AudioUtils {
    * @returns {Promise<boolean>} True if cleanup was successful
    */
   async cleanup() {
-    try {
-      if (fs.existsSync(this.config.tempDir)) {
-        await fs.promises.rm(this.config.tempDir, { recursive: true, force: true });
-        return true;
-      }
-      return true;
-    } catch (error) {
-      logger.error('Error cleaning up temporary files:', error);
-      return false;
-    }
+    // No need to manually clean up as TempFileManager handles this
+    return true;
   }
 }
 

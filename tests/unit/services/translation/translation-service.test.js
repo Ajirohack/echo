@@ -1,61 +1,64 @@
-const { expect } = require('chai');
-const sinon = require('sinon');
+// Jest functionality replaces Sinon
 const TranslationService = require('../../../../src/services/translation/translation-service');
 
 describe('TranslationService', () => {
     let service;
-    let sandbox;
 
     beforeEach(() => {
-        sandbox = sinon.createSandbox();
         service = new TranslationService({
-            serviceName: 'test-service',
-            apiKey: 'test-api-key'
+            apiKey: 'test-api-key',
+            defaultSourceLanguage: 'en',
+            defaultTargetLanguage: 'es'
         });
     });
 
     afterEach(() => {
-        sandbox.restore();
+        jest.clearAllMocks();
     });
 
     describe('initialization', () => {
         it('should create an instance with the provided config', () => {
-            expect(service).to.be.an.instanceOf(TranslationService);
-            expect(service.config.serviceName).to.equal('test-service');
-            expect(service.config.apiKey).to.equal('test-api-key');
+            expect(service).toBeInstanceOf(TranslationService);
+            expect(service.apiKey).toBe('test-api-key');
+            expect(service.defaultSourceLanguage).toBe('en');
+            expect(service.defaultTargetLanguage).toBe('es');
         });
 
         it('should have default values for non-provided config options', () => {
-            expect(service.config.timeout).to.be.a('number');
-            expect(service.config.retries).to.be.a('number');
+            const defaultService = new TranslationService();
+            expect(defaultService.defaultSourceLanguage).toBe('en');
+            expect(defaultService.defaultTargetLanguage).toBe('es');
         });
     });
 
-    describe('abstract methods', () => {
-        it('should throw error for abstract translate method', async () => {
-            try {
-                await service.translate('Hello', 'en', 'fr');
-                expect.fail('Should have thrown an error');
-            } catch (err) {
-                expect(err.message).to.include('Method not implemented');
-            }
+    describe('translation methods', () => {
+        it('should throw error for unimplemented translate method', async () => {
+            await expect(service.translate('Hello', 'en', 'fr'))
+                .rejects
+                .toThrow('Translation service not yet implemented');
         });
 
-        it('should throw error for abstract detectLanguage method', async () => {
-            try {
-                await service.detectLanguage('Hello');
-                expect.fail('Should have thrown an error');
-            } catch (err) {
-                expect(err.message).to.include('Method not implemented');
-            }
+        it('should detect language correctly', async () => {
+            const result = await service.detectLanguage('Hello world');
+            expect(result).toHaveProperty('language');
+            expect(result).toHaveProperty('score');
+            expect(typeof result.language).toBe('string');
+            expect(typeof result.score).toBe('number');
+        });
+
+        it('should return empty string for empty text', async () => {
+            const result = await service.translate('', 'en', 'fr');
+            expect(result).toBe('');
         });
     });
 
     describe('utility methods', () => {
-        it('should format language codes correctly', () => {
-            expect(service.formatLanguageCode('en-US')).to.equal('en');
-            expect(service.formatLanguageCode('zh-CN')).to.equal('zh');
-            expect(service.formatLanguageCode('en')).to.equal('en');
+        it('should return supported languages', async () => {
+            const languages = await service.getSupportedLanguages();
+            expect(Array.isArray(languages)).toBe(true);
+            expect(languages.length).toBeGreaterThan(0);
+            expect(languages[0]).toHaveProperty('code');
+            expect(languages[0]).toHaveProperty('name');
         });
     });
 });

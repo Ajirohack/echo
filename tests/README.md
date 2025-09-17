@@ -1,6 +1,6 @@
-# Testing Strategy
+# Testing Guide
 
-This document outlines the testing approach for the Universal Translator application, including unit, integration, and end-to-end testing strategies.
+This document outlines the testing approach for the echo application, including unit, integration, and end-to-end testing strategies.
 
 ## Test Types
 

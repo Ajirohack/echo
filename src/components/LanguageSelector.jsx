@@ -43,7 +43,7 @@ export const LanguageSelector = ({
 
         // Filter out excluded languages
         const filteredLanguages = supportedLanguages.filter(
-          lang => !excludeLanguages.includes(lang.code)
+          (lang) => !excludeLanguages.includes(lang.code)
         );
 
         if (isMounted) {
@@ -67,32 +67,33 @@ export const LanguageSelector = ({
   }, [excludeLanguages]);
 
   // Handle language selection
-  const handleSelect = useCallback((language) => {
-    if (onChange) {
-      onChange(language.code);
-    }
-    setIsOpen(false);
-    setSearchQuery('');
-  }, [onChange]);
+  const handleSelect = useCallback(
+    (language) => {
+      if (onChange) {
+        onChange(language.code);
+      }
+      setIsOpen(false);
+      setSearchQuery('');
+    },
+    [onChange]
+  );
 
   // Filter languages based on search query
   const filteredLanguages = useCallback(() => {
     if (!searchQuery.trim()) {
       return languages;
     }
-    
+
     const query = searchQuery.toLowerCase();
     return languages.filter(
-      lang => 
-        lang.name.toLowerCase().includes(query) || 
-        lang.code.toLowerCase().includes(query)
+      (lang) => lang.name.toLowerCase().includes(query) || lang.code.toLowerCase().includes(query)
     );
   }, [languages, searchQuery]);
 
   // Get the display name for the selected language
   const getSelectedLanguageName = useCallback(() => {
     if (!value) return t('selectLanguage');
-    const lang = languages.find(l => l.code === value);
+    const lang = languages.find((l) => l.code === value);
     return lang ? lang.name : value.toUpperCase();
   }, [languages, value, t]);
 
@@ -137,12 +138,10 @@ export const LanguageSelector = ({
         aria-expanded={isOpen}
         aria-label={`${type === 'source' ? t('sourceLanguage') : t('targetLanguage')}: ${getSelectedLanguageName()}`}
       >
-        <span className="selected-language">
-          {getSelectedLanguageName()}
-        </span>
+        <span className="selected-language">{getSelectedLanguageName()}</span>
         <span className="dropdown-arrow">▼</span>
       </button>
-      
+
       {isOpen && (
         <div className="dropdown-menu" role="listbox">
           <div className="search-container">
@@ -156,7 +155,7 @@ export const LanguageSelector = ({
               aria-label={t('search.languages')}
             />
           </div>
-          
+
           <div className="language-list" role="listbox">
             {filteredLanguages().length > 0 ? (
               filteredLanguages().map((language) => (
@@ -173,9 +172,7 @@ export const LanguageSelector = ({
                 </button>
               ))
             ) : (
-              <div className="no-results">
-                {t('noResults')}
-              </div>
+              <div className="no-results">{t('noResults')}</div>
             )}
           </div>
         </div>

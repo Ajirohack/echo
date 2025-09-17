@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import PropTypes from 'prop-types';
-import { useTranslation } from '../hooks/useTranslation';
+import useTranslation from '../hooks/useTranslation';
 import '../styles/AudioRecorder.css';
 
 /**
@@ -30,7 +30,7 @@ export const AudioRecorder = ({
         mediaRecorder.stop();
       }
       if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current.getTracks().forEach((track) => track.stop());
       }
       if (timerRef.current) {
         clearInterval(timerRef.current);
@@ -42,7 +42,7 @@ export const AudioRecorder = ({
   useEffect(() => {
     if (isRecording) {
       timerRef.current = setInterval(() => {
-        setElapsedTime(prev => prev + 1);
+        setElapsedTime((prev) => prev + 1);
       }, 1000);
     } else if (timerRef.current) {
       clearInterval(timerRef.current);
@@ -66,7 +66,7 @@ export const AudioRecorder = ({
   // Handle data available event from MediaRecorder
   const handleDataAvailable = useCallback((event) => {
     if (event.data.size > 0) {
-      setAudioChunks(prev => [...prev, event.data]);
+      setAudioChunks((prev) => [...prev, event.data]);
     }
   }, []);
 
@@ -87,17 +87,24 @@ export const AudioRecorder = ({
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
-      
+
       const recorder = new MediaRecorder(stream);
       recorder.ondataavailable = handleDataAvailable;
       recorder.onstop = handleStop;
-      
+      recorder.onerror = (event) => {
+        console.error('MediaRecorder error:', event);
+        setIsRecording(false);
+        if (onError) {
+          onError(event.error || new Error('MediaRecorder error'));
+        }
+      };
+
       recorder.start();
       setMediaRecorder(recorder);
       setIsRecording(true);
       setElapsedTime(0);
       setPermissionDenied(false);
-      
+
       if (onRecordingStart) {
         onRecordingStart();
       }
@@ -115,13 +122,13 @@ export const AudioRecorder = ({
     if (mediaRecorder && mediaRecorder.state !== 'inactive') {
       mediaRecorder.stop();
       setIsRecording(false);
-      
+
       // Stop all tracks in the stream
       if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current.getTracks().forEach((track) => track.stop());
         streamRef.current = null;
       }
-      
+
       if (onRecordingStop) {
         onRecordingStop();
       }
@@ -147,24 +154,18 @@ export const AudioRecorder = ({
         aria-label={isRecording ? t('Stop recording') : t('Start recording')}
       >
         <span className="button-icon">
-          {isRecording ? (
-            <span className="stop-icon" />
-          ) : (
-            <span className="mic-icon" />
-          )}
+          {isRecording ? <span className="stop-icon" /> : <span className="mic-icon" />}
         </span>
-        <span className="button-text">
-          {isRecording ? t('Stop') : t('Record')}
-        </span>
+        <span className="button-text">{isRecording ? t('Stop') : t('Record')}</span>
       </button>
-      
+
       {isRecording && (
         <div className="recording-indicator" data-testid="recording-indicator">
           <span className="pulse" />
           <span className="time">{formatTime(elapsedTime)}</span>
         </div>
       )}
-      
+
       {permissionDenied && (
         <div className="error-message">
           {t('Microphone access was denied. Please check your browser permissions.')}

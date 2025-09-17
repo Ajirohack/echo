@@ -19,7 +19,7 @@ const logLevels = {
   error: 0,
   warn: 1,
   info: 2,
-  debug: 3
+  debug: 3,
 };
 
 const currentLogLevel = process.env.NODE_ENV === 'development' ? 'debug' : 'info';
@@ -30,7 +30,7 @@ const logger = {
       const timestamp = format(new Date(), 'yyyy-MM-dd HH:mm:ss');
       const formattedMessage = util.format(message, ...args);
       const logMessage = `[${timestamp}] [${level.toUpperCase()}] ${formattedMessage}\n`;
-      
+
       // Write to console
       if (level === 'error') {
         console.error(logMessage.trim());
@@ -39,27 +39,27 @@ const logger = {
       } else {
         console.log(logMessage.trim());
       }
-      
+
       // Write to log file
       logStream.write(logMessage);
     }
   },
-  
+
   error: (message, ...args) => {
     logger.log('error', message, ...args);
   },
-  
+
   warn: (message, ...args) => {
     logger.log('warn', message, ...args);
   },
-  
+
   info: (message, ...args) => {
     logger.log('info', message, ...args);
   },
-  
+
   debug: (message, ...args) => {
     logger.log('debug', message, ...args);
-  }
+  },
 };
 
 // Handle process exit

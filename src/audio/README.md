@@ -1,6 +1,6 @@
-# Audio System for Universal Translator
+# Audio System for echo
 
-This module provides a cross-platform audio capture, processing, and routing system for the Universal Translator application.
+This module provides a cross-platform audio capture, processing, and routing system for the echo application.
 
 ## Features
 

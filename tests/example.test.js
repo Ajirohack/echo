@@ -1,13 +1,10 @@
-const { expect } = require('chai');
-const sinon = require('sinon');
-
-describe('Example Test Suite', function() {
-  it('should pass a simple test', function() {
-    expect(true).to.be.true;
+describe('Example Test Suite', () => {
+  it('should pass a simple test', () => {
+    expect(true).toBe(true);
   });
 
-  it('should demonstrate sinon stub', function() {
-    const stub = sinon.stub().returns(42);
-    expect(stub()).to.equal(42);
+  it('should demonstrate jest mock', () => {
+    const mockFn = jest.fn().mockReturnValue(42);
+    expect(mockFn()).toBe(42);
   });
 });

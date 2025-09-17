@@ -23,16 +23,18 @@ class STTManager extends EventEmitter {
       autoDetectLanguage: true,
       confidenceThreshold: 0.7,
       maxRetries: 2,
-      tempDir: path.join(require('os').tmpdir(), 'universal-translator'),
-      ...config
+      ...config,
     };
+
+    // Import TempFileManager
+    this.tempFileManager = require('../../utils/TempFileManager');
 
     // Initialize services
     this.services = {
       whisper: new WhisperSTT(config.whisper || {}),
       azure: new AzureSTT(config.azure || {}),
       google: new GoogleSTT(config.google || {}),
-      gpt4o: new GPT4oSTT(config.gpt4o || {})
+      gpt4o: new GPT4oSTT(config.gpt4o || {}),
     };
 
     this.languageDetector = new LanguageDetector();
@@ -41,7 +43,7 @@ class STTManager extends EventEmitter {
       whisper: { available: false, lastError: null, lastCheck: 0 },
       azure: { available: false, lastError: null, lastCheck: 0 },
       google: { available: false, lastError: null, lastCheck: 0 },
-      gpt4o: { available: false, lastError: null, lastCheck: 0 }
+      gpt4o: { available: false, lastError: null, lastCheck: 0 },
     };
 
     // Ensure temp directory exists
@@ -58,7 +60,7 @@ class STTManager extends EventEmitter {
    */
   async initializeServices() {
     logger.info('Initializing STT services...');
-    
+
     // Check service availability in parallel
     await Promise.all(
       Object.entries(this.services).map(async ([serviceName, service]) => {
@@ -68,9 +70,9 @@ class STTManager extends EventEmitter {
             available: isAvailable,
             lastError: null,
             lastCheck: Date.now(),
-            ...(isAvailable ? { lastSuccess: Date.now() } : {})
+            ...(isAvailable ? { lastSuccess: Date.now() } : {}),
           };
-          
+
           if (isAvailable) {
             logger.info(`${serviceName.toUpperCase()} STT service initialized successfully`);
           } else {
@@ -80,13 +82,13 @@ class STTManager extends EventEmitter {
           this.serviceStatus[serviceName] = {
             available: false,
             lastError: error.message,
-            lastCheck: Date.now()
+            lastCheck: Date.now(),
           };
           logger.error(`Error initializing ${serviceName} STT service:`, error);
         }
       })
     );
-    
+
     // Log service status
     this.logServiceStatus();
   }
@@ -96,14 +98,17 @@ class STTManager extends EventEmitter {
    */
   logServiceStatus() {
     logger.info('STT Service Status:', {
-      services: Object.entries(this.serviceStatus).reduce((acc, [name, status]) => ({
-        ...acc,
-        [name]: {
-          available: status.available,
-          lastCheck: new Date(status.lastCheck).toISOString(),
-          ...(status.lastError && { lastError: status.lastError })
-        }
-      }), {})
+      services: Object.entries(this.serviceStatus).reduce(
+        (acc, [name, status]) => ({
+          ...acc,
+          [name]: {
+            available: status.available,
+            lastCheck: new Date(status.lastCheck).toISOString(),
+            ...(status.lastError && { lastError: status.lastError }),
+          },
+        }),
+        {}
+      ),
     });
   }
 
@@ -117,13 +122,13 @@ class STTManager extends EventEmitter {
     if (preferredService && this.serviceStatus[preferredService]?.available) {
       return {
         service: this.services[preferredService],
-        serviceName: preferredService
+        serviceName: preferredService,
       };
     }
 
     // Otherwise, use the first available service in the fallback order
     const availableService = this.config.fallbackOrder.find(
-      service => this.serviceStatus[service]?.available
+      (service) => this.serviceStatus[service]?.available
     );
 
     if (!availableService) {
@@ -132,7 +137,7 @@ class STTManager extends EventEmitter {
 
     return {
       service: this.services[availableService],
-      serviceName: availableService
+      serviceName: availableService,
     };
   }
 
@@ -147,15 +152,15 @@ class STTManager extends EventEmitter {
     const language = options.language || this.config.language;
     const preferredService = options.service;
     const isStream = options.isStream || false;
-    
+
     try {
       // Get the best available service
       const { service, serviceName } = this.getBestAvailableService(preferredService);
-      
+
       logger.info(`Starting transcription with ${serviceName.toUpperCase()} service`, {
         requestId,
         language,
-        isStream
+        isStream,
       });
 
       // Prepare transcription options
@@ -163,7 +168,7 @@ class STTManager extends EventEmitter {
         ...options,
         language,
         requestId,
-        isStream
+        isStream,
       };
 
       // Start transcription
@@ -180,7 +185,7 @@ class STTManager extends EventEmitter {
       this.serviceStatus[serviceName] = {
         ...this.serviceStatus[serviceName],
         lastSuccess: Date.now(),
-        lastError: null
+        lastError: null,
       };
 
       // Emit completion event
@@ -188,20 +193,20 @@ class STTManager extends EventEmitter {
         requestId,
         result,
         service: serviceName,
-        language: result.language || language
+        language: result.language || language,
       });
 
       return result;
     } catch (error) {
       logger.error('Transcription failed:', error);
-      
+
       // Update service status on error
       if (serviceName) {
         this.serviceStatus[serviceName] = {
           ...this.serviceStatus[serviceName],
           available: false,
           lastError: error.message,
-          lastCheck: Date.now()
+          lastCheck: Date.now(),
         };
       }
 
@@ -210,7 +215,7 @@ class STTManager extends EventEmitter {
         requestId,
         error: error.message,
         service: serviceName,
-        language
+        language,
       });
 
       // If this was a preferred service, retry with fallback
@@ -219,7 +224,7 @@ class STTManager extends EventEmitter {
         return this.transcribe(audioData, {
           ...options,
           service: null, // Remove preferred service to use fallback
-          requestId // Keep the same request ID
+          requestId, // Keep the same request ID
         });
       }
 
@@ -234,11 +239,11 @@ class STTManager extends EventEmitter {
   async handleBatchTranscription(service, audioData, options) {
     // Save audio data to a temporary file if it's a buffer
     const audioPath = await this.prepareAudioFile(audioData, options);
-    
+
     try {
       // Perform transcription
       let result = await service.transcribe(audioPath, options);
-      
+
       // If language is auto, detect it
       if (options.language === 'auto' || !result.language) {
         const detectedLang = await this.languageDetector.detect(result.text);
@@ -247,12 +252,12 @@ class STTManager extends EventEmitter {
       } else {
         result.language = options.language;
       }
-      
+
       return result;
     } finally {
-      // Clean up temporary file
-      if (audioPath && audioPath.startsWith(this.config.tempDir)) {
-        fs.unlink(audioPath, () => {});
+      // Clean up temporary file using TempFileManager
+      if (audioPath && !audioPath.includes('..')) {
+        this.tempFileManager.removeFile(audioPath);
       }
     }
   }
@@ -265,7 +270,7 @@ class STTManager extends EventEmitter {
     return new Promise((resolve, reject) => {
       const requestId = options.requestId || uuidv4();
       const transcriptionId = `stream-${requestId}`;
-      
+
       // Create a transcription session
       const session = {
         id: transcriptionId,
@@ -275,81 +280,82 @@ class STTManager extends EventEmitter {
         interimResults: [],
         finalResults: [],
         language: options.language,
-        service: options.service
+        service: options.service,
       };
-      
+
       this.activeTranscriptions.set(transcriptionId, session);
-      
+
       // Handle transcription events
       const onData = (data) => {
         // Update session with new data
         if (data.text) {
           session.text = data.text;
           session.isFinal = data.isFinal || false;
-          
+
           if (data.isFinal) {
             session.finalResults.push(data.text);
-            
+
             // If language is auto, detect it from the final result
             if (session.language === 'auto' || !data.language) {
-              this.languageDetector.detect(data.text)
+              this.languageDetector
+                .detect(data.text)
                 .then(({ language, confidence }) => {
                   session.language = language;
                   session.languageConfidence = confidence;
-                  
+
                   this.emit('transcriptionUpdate', {
                     ...session,
                     language,
-                    languageConfidence: confidence
+                    languageConfidence: confidence,
                   });
                 })
-                .catch(error => {
+                .catch((error) => {
                   logger.error('Language detection failed:', error);
                 });
             }
           } else {
             session.interimResults.push(data.text);
           }
-          
+
           // Emit update event
           this.emit('transcriptionUpdate', {
             ...session,
-            ...data
+            ...data,
           });
         }
       };
-      
+
       const onError = (error) => {
         logger.error('Streaming transcription error:', error);
         this.emit('error', {
           requestId,
           error: error.message,
           service: options.service,
-          language: options.language
+          language: options.language,
         });
         reject(error);
       };
-      
+
       const onEnd = () => {
         session.endTime = Date.now();
         session.duration = session.endTime - session.startTime;
         session.isFinal = true;
-        
+
         this.emit('transcriptionComplete', {
           ...session,
-          isFinal: true
+          isFinal: true,
         });
-        
+
         this.activeTranscriptions.delete(transcriptionId);
         resolve(session);
       };
-      
+
       // Start streaming transcription
       service.streamingTranscribe(audioStream, {
         ...options,
         onData,
         onError,
-        onEnd
+        onEnd,
       });
     });
   }
@@ -363,30 +369,32 @@ class STTManager extends EventEmitter {
     if (typeof audioData === 'string' && fs.existsSync(audioData)) {
       return audioData;
     }
-    
-    // Generate a temporary file path
-    const tempFilePath = path.join(
-      this.config.tempDir,
-      `audio_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.wav`
-    );
-    
-    // If audioData is a buffer, write it to a file
+
+    // If audioData is a buffer, create a temporary file using TempFileManager
     if (Buffer.isBuffer(audioData)) {
-      await fs.promises.writeFile(tempFilePath, audioData);
-      return tempFilePath;
+      return await this.tempFileManager.createTempFile(audioData, 'stt_audio', 'wav');
     }
-    
-    // If audioData is a stream, pipe it to a file
+
+    // If audioData is a stream, pipe it to a temporary file
     if (typeof audioData.pipe === 'function') {
+      // Create an empty temporary file
+      const tempFilePath = await this.tempFileManager.createTempFile(
+        Buffer.from([]),
+        'stt_stream',
+        'wav'
+      );
       const writeStream = fs.createWriteStream(tempFilePath);
       audioData.pipe(writeStream);
-      
+
       return new Promise((resolve, reject) => {
         writeStream.on('finish', () => resolve(tempFilePath));
-        writeStream.on('error', reject);
+        writeStream.on('error', (err) => {
+          this.tempFileManager.removeFile(tempFilePath);
+          reject(err);
+        });
       });
     }
-    
+
     throw new Error('Unsupported audio data format');
   }
 
@@ -395,7 +403,7 @@ class STTManager extends EventEmitter {
    */
   async stopAll() {
     logger.info('Stopping all active transcriptions');
-    
+
     // Stop all active streaming transcriptions
     for (const [id, session] of this.activeTranscriptions.entries()) {
       try {
@@ -405,13 +413,13 @@ class STTManager extends EventEmitter {
       } catch (error) {
         logger.error(`Error stopping transcription ${id}:`, error);
       }
-      
+
       this.activeTranscriptions.delete(id);
     }
-    
+
     // Emit event for each stopped transcription
     this.emit('allStopped', {
-      count: this.activeTranscriptions.size
+      count: this.activeTranscriptions.size,
     });
   }
 
@@ -428,20 +436,20 @@ class STTManager extends EventEmitter {
    */
   async destroy() {
     logger.info('Destroying STT manager');
-    
+
     // Stop all active transcriptions
     await this.stopAll();
-    
+
     // Clean up services
     await Promise.all(
-      Object.values(this.services).map(service => 
+      Object.values(this.services).map((service) =>
         service.destroy ? service.destroy() : Promise.resolve()
       )
     );
-    
+
     // Clear all event listeners
     this.removeAllListeners();
-    
+
     logger.info('STT manager destroyed');
   }
 }

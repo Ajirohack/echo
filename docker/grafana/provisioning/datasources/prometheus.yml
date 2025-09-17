@@ -1,0 +1,32 @@
+# Grafana datasource configuration for Prometheus
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: true
+    jsonData:
+      timeInterval: '15s'
+      queryTimeout: '60s'
+      httpMethod: 'POST'
+      manageAlerts: true
+      alertmanagerUid: 'alertmanager'
+    secureJsonData: {}
+    version: 1
+
+  - name: Echo-Metrics
+    type: prometheus
+    access: proxy
+    url: http://echo-app:9000
+    isDefault: false
+    editable: true
+    jsonData:
+      timeInterval: '10s'
+      queryTimeout: '30s'
+      httpMethod: 'GET'
+    secureJsonData: {}
+    version: 1

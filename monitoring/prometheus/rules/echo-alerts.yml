@@ -1,0 +1,341 @@
+groups:
+  - name: echo.application
+    rules:
+      # Application Health
+      - alert: EchoAppDown
+        expr: up{job="echo-app"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: echo-app
+        annotations:
+          summary: 'Echo application is down'
+          description: 'Echo application {{ $labels.instance }} has been down for more than 1 minute.'
+          runbook_url: 'https://docs.echo.com/runbooks/app-down'
+
+      - alert: EchoAppHighErrorRate
+        expr: |
+          (
+            rate(http_requests_total{job="echo-app",status=~"5.."}[5m]) /
+            rate(http_requests_total{job="echo-app"}[5m])
+          ) * 100 > 5
+        for: 5m
+        labels:
+          severity: warning
+          service: echo-app
+        annotations:
+          summary: 'High error rate in Echo application'
+          description: 'Echo application {{ $labels.instance }} has error rate of {{ $value }}% for more than 5 minutes.'
+
+      - alert: EchoAppHighLatency
+        expr: |
+          histogram_quantile(0.95,
+            rate(http_request_duration_seconds_bucket{job="echo-app"}[5m])
+          ) > 2
+        for: 5m
+        labels:
+          severity: warning
+          service: echo-app
+        annotations:
+          summary: 'High latency in Echo application'
+          description: 'Echo application {{ $labels.instance }} 95th percentile latency is {{ $value }}s for more than 5 minutes.'
+
+      # WebRTC Connection Issues
+      - alert: EchoWebRTCConnectionFailures
+        expr: |
+          rate(webrtc_connection_failures_total{job="echo-app"}[5m]) > 0.1
+        for: 3m
+        labels:
+          severity: warning
+          service: echo-webrtc
+        annotations:
+          summary: 'High WebRTC connection failure rate'
+          description: 'WebRTC connection failure rate is {{ $value }} failures/sec on {{ $labels.instance }}.'
+
+      - alert: EchoActiveConnectionsHigh
+        expr: webrtc_active_connections{job="echo-app"} > 1000
+        for: 5m
+        labels:
+          severity: warning
+          service: echo-webrtc
+        annotations:
+          summary: 'High number of active WebRTC connections'
+          description: '{{ $labels.instance }} has {{ $value }} active WebRTC connections.'
+
+      # Audio Processing
+      - alert: EchoAudioProcessingLatency
+        expr: |
+          histogram_quantile(0.95,
+            rate(audio_processing_duration_seconds_bucket{job="echo-app"}[5m])
+          ) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          service: echo-audio
+        annotations:
+          summary: 'High audio processing latency'
+          description: 'Audio processing 95th percentile latency is {{ $value }}s on {{ $labels.instance }}.'
+
+      - alert: EchoAudioQualityDegraded
+        expr: audio_quality_score{job="echo-app"} < 0.8
+        for: 2m
+        labels:
+          severity: warning
+          service: echo-audio
+        annotations:
+          summary: 'Audio quality degraded'
+          description: 'Audio quality score is {{ $value }} on {{ $labels.instance }}.'
+
+  - name: echo.infrastructure
+    rules:
+      # Database
+      - alert: PostgreSQLDown
+        expr: up{job="postgresql"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: postgresql
+        annotations:
+          summary: 'PostgreSQL is down'
+          description: 'PostgreSQL instance {{ $labels.instance }} has been down for more than 1 minute.'
+
+      - alert: PostgreSQLHighConnections
+        expr: |
+          (
+            pg_stat_database_numbackends /
+            pg_settings_max_connections
+          ) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: postgresql
+        annotations:
+          summary: 'PostgreSQL high connection usage'
+          description: 'PostgreSQL connection usage is {{ $value }}% on {{ $labels.instance }}.'
+
+      - alert: PostgreSQLSlowQueries
+        expr: |
+          rate(pg_stat_database_tup_returned[5m]) /
+          rate(pg_stat_database_tup_fetched[5m]) < 0.1
+        for: 5m
+        labels:
+          severity: warning
+          service: postgresql
+        annotations:
+          summary: 'PostgreSQL slow queries detected'
+          description: 'PostgreSQL query efficiency is low on {{ $labels.instance }}.'
+
+      # Redis
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: redis
+        annotations:
+          summary: 'Redis is down'
+          description: 'Redis instance {{ $labels.instance }} has been down for more than 1 minute.'
+
+      - alert: RedisHighMemoryUsage
+        expr: |
+          (
+            redis_memory_used_bytes /
+            redis_memory_max_bytes
+          ) * 100 > 90
+        for: 5m
+        labels:
+          severity: warning
+          service: redis
+        annotations:
+          summary: 'Redis high memory usage'
+          description: 'Redis memory usage is {{ $value }}% on {{ $labels.instance }}.'
+
+      - alert: RedisHighConnections
+        expr: redis_connected_clients > 100
+        for: 5m
+        labels:
+          severity: warning
+          service: redis
+        annotations:
+          summary: 'Redis high connection count'
+          description: 'Redis has {{ $value }} connected clients on {{ $labels.instance }}.'
+
+      # Elasticsearch
+      - alert: ElasticsearchDown
+        expr: up{job="elasticsearch"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: elasticsearch
+        annotations:
+          summary: 'Elasticsearch is down'
+          description: 'Elasticsearch instance {{ $labels.instance }} has been down for more than 1 minute.'
+
+      - alert: ElasticsearchClusterRed
+        expr: elasticsearch_cluster_health_status{color="red"} == 1
+        for: 1m
+        labels:
+          severity: critical
+          service: elasticsearch
+        annotations:
+          summary: 'Elasticsearch cluster status is red'
+          description: 'Elasticsearch cluster {{ $labels.cluster }} status is red.'
+
+      - alert: ElasticsearchHighDiskUsage
+        expr: |
+          (
+            elasticsearch_filesystem_data_used_bytes /
+            elasticsearch_filesystem_data_size_bytes
+          ) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          service: elasticsearch
+        annotations:
+          summary: 'Elasticsearch high disk usage'
+          description: 'Elasticsearch disk usage is {{ $value }}% on {{ $labels.instance }}.'
+
+  - name: echo.kubernetes
+    rules:
+      # Pod Issues
+      - alert: EchoPodCrashLooping
+        expr: |
+          rate(kube_pod_container_status_restarts_total{namespace=~"echo-.*"}[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: kubernetes
+        annotations:
+          summary: 'Pod is crash looping'
+          description: 'Pod {{ $labels.pod }} in namespace {{ $labels.namespace }} is crash looping.'
+
+      - alert: EchoPodNotReady
+        expr: |
+          kube_pod_status_ready{condition="false",namespace=~"echo-.*"} == 1
+        for: 5m
+        labels:
+          severity: warning
+          service: kubernetes
+        annotations:
+          summary: 'Pod is not ready'
+          description: 'Pod {{ $labels.pod }} in namespace {{ $labels.namespace }} has been not ready for more than 5 minutes.'
+
+      # Resource Usage
+      - alert: EchoHighCPUUsage
+        expr: |
+          (
+            rate(container_cpu_usage_seconds_total{namespace=~"echo-.*",container!="POD"}[5m]) /
+            container_spec_cpu_quota * container_spec_cpu_period
+          ) * 100 > 80
+        for: 10m
+        labels:
+          severity: warning
+          service: kubernetes
+        annotations:
+          summary: 'High CPU usage'
+          description: 'Container {{ $labels.container }} in pod {{ $labels.pod }} has CPU usage of {{ $value }}%.'
+
+      - alert: EchoHighMemoryUsage
+        expr: |
+          (
+            container_memory_working_set_bytes{namespace=~"echo-.*",container!="POD"} /
+            container_spec_memory_limit_bytes
+          ) * 100 > 90
+        for: 10m
+        labels:
+          severity: warning
+          service: kubernetes
+        annotations:
+          summary: 'High memory usage'
+          description: 'Container {{ $labels.container }} in pod {{ $labels.pod }} has memory usage of {{ $value }}%.'
+
+      # Deployment Issues
+      - alert: EchoDeploymentReplicasMismatch
+        expr: |
+          kube_deployment_status_replicas{namespace=~"echo-.*"} !=
+          kube_deployment_spec_replicas{namespace=~"echo-.*"}
+        for: 10m
+        labels:
+          severity: warning
+          service: kubernetes
+        annotations:
+          summary: 'Deployment replicas mismatch'
+          description: 'Deployment {{ $labels.deployment }} in namespace {{ $labels.namespace }} has {{ $labels.spec_replicas }} desired but {{ $labels.status_replicas }} running replicas.'
+
+  - name: echo.networking
+    rules:
+      # Ingress Issues
+      - alert: EchoIngressDown
+        expr: up{job="blackbox",instance=~"https://.*echo.*"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: ingress
+        annotations:
+          summary: 'Echo ingress endpoint is down'
+          description: 'Echo endpoint {{ $labels.instance }} is not responding.'
+
+      - alert: EchoIngressHighLatency
+        expr: probe_duration_seconds{job="blackbox",instance=~"https://.*echo.*"} > 5
+        for: 5m
+        labels:
+          severity: warning
+          service: ingress
+        annotations:
+          summary: 'High ingress latency'
+          description: 'Echo endpoint {{ $labels.instance }} has latency of {{ $value }}s.'
+
+      - alert: EchoSSLCertificateExpiring
+        expr: |
+          (probe_ssl_earliest_cert_expiry{job="blackbox"} - time()) / 86400 < 30
+        for: 1h
+        labels:
+          severity: warning
+          service: ssl
+        annotations:
+          summary: 'SSL certificate expiring soon'
+          description: 'SSL certificate for {{ $labels.instance }} expires in {{ $value }} days.'
+
+  - name: echo.business
+    rules:
+      # User Activity
+      - alert: EchoLowUserActivity
+        expr: |
+          rate(user_sessions_total{job="echo-app"}[1h]) < 10
+        for: 30m
+        labels:
+          severity: info
+          service: business
+        annotations:
+          summary: 'Low user activity detected'
+          description: 'User session rate is {{ $value }} sessions/hour, which is below normal levels.'
+
+      - alert: EchoHighUserChurn
+        expr: |
+          (
+            rate(user_sessions_ended_total{job="echo-app"}[1h]) /
+            rate(user_sessions_started_total{job="echo-app"}[1h])
+          ) > 0.8
+        for: 15m
+        labels:
+          severity: warning
+          service: business
+        annotations:
+          summary: 'High user churn rate'
+          description: 'User churn rate is {{ $value }}, indicating potential user experience issues.'
+
+      # Revenue Impact
+      - alert: EchoRevenueImpact
+        expr: |
+          (
+            rate(http_requests_total{job="echo-app",status=~"5.."}[5m]) /
+            rate(http_requests_total{job="echo-app"}[5m])
+          ) * 100 > 1 and
+          rate(user_sessions_total{job="echo-app"}[5m]) > 1
+        for: 5m
+        labels:
+          severity: critical
+          service: business
+        annotations:
+          summary: 'Potential revenue impact detected'
+          description: 'High error rate ({{ $value }}%) during active user sessions may impact revenue.'

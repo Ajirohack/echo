@@ -1,0 +1,323 @@
+# Staging-specific deployment patches
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echo-app
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: 'true'
+        prometheus.io/port: '8080'
+        prometheus.io/path: '/metrics'
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        fsGroup: 65534
+      containers:
+        - name: echo-app
+          env:
+            - name: NODE_ENV
+              value: 'staging'
+            - name: LOG_LEVEL
+              value: 'debug'
+            - name: DEBUG_MODE
+              value: 'true'
+            - name: ENABLE_CORS
+              value: 'true'
+            - name: ENABLE_SWAGGER
+              value: 'true'
+            - name: METRICS_ENABLED
+              value: 'true'
+            - name: HEALTH_CHECK_ENABLED
+              value: 'true'
+            - name: RATE_LIMITING_ENABLED
+              value: 'true'
+            - name: COMPRESSION_ENABLED
+              value: 'true'
+            - name: WORKER_PROCESSES
+              value: '2'
+            - name: MAX_CONNECTIONS
+              value: '500'
+          resources:
+            requests:
+              memory: '512Mi'
+              cpu: '250m'
+            limits:
+              memory: '1Gi'
+              cpu: '500m'
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echo-postgres
+spec:
+  replicas: 1
+  template:
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        fsGroup: 999
+      containers:
+        - name: postgres
+          env:
+            - name: POSTGRES_SHARED_PRELOAD_LIBRARIES
+              value: 'pg_stat_statements'
+            - name: POSTGRES_MAX_CONNECTIONS
+              value: '100'
+            - name: POSTGRES_SHARED_BUFFERS
+              value: '128MB'
+            - name: POSTGRES_EFFECTIVE_CACHE_SIZE
+              value: '512MB'
+            - name: POSTGRES_MAINTENANCE_WORK_MEM
+              value: '32MB'
+            - name: POSTGRES_LOG_STATEMENT
+              value: 'mod'
+            - name: POSTGRES_LOG_MIN_DURATION_STATEMENT
+              value: '1000'
+          resources:
+            requests:
+              memory: '1Gi'
+              cpu: '500m'
+            limits:
+              memory: '2Gi'
+              cpu: '1000m'
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - pg_isready -U $POSTGRES_USER -d $POSTGRES_DB
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - pg_isready -U $POSTGRES_USER -d $POSTGRES_DB
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            timeoutSeconds: 3
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echo-redis
+spec:
+  replicas: 1
+  template:
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        fsGroup: 999
+      containers:
+        - name: redis
+          env:
+            - name: REDIS_MAXMEMORY
+              value: '384mb'
+            - name: REDIS_MAXMEMORY_POLICY
+              value: 'allkeys-lru'
+          command:
+            - redis-server
+            - --maxmemory
+            - 384mb
+            - --maxmemory-policy
+            - allkeys-lru
+            - --save
+            - '900 1'
+            - --save
+            - '300 10'
+            - --appendonly
+            - 'yes'
+            - --appendfsync
+            - 'everysec'
+            - --loglevel
+            - notice
+          resources:
+            requests:
+              memory: '256Mi'
+              cpu: '125m'
+            limits:
+              memory: '512Mi'
+              cpu: '250m'
+          livenessProbe:
+            exec:
+              command:
+                - redis-cli
+                - ping
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+          readinessProbe:
+            exec:
+              command:
+                - redis-cli
+                - ping
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            timeoutSeconds: 3
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echo-elasticsearch
+spec:
+  replicas: 1
+  template:
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+        - name: elasticsearch
+          env:
+            - name: ES_JAVA_OPTS
+              value: '-Xms1g -Xmx1g'
+            - name: discovery.type
+              value: 'single-node'
+            - name: cluster.routing.allocation.disk.threshold_enabled
+              value: 'false'
+            - name: bootstrap.memory_lock
+              value: 'true'
+            - name: indices.memory.index_buffer_size
+              value: '20%'
+          resources:
+            requests:
+              memory: '1.5Gi'
+              cpu: '500m'
+            limits:
+              memory: '2Gi'
+              cpu: '1000m'
+          livenessProbe:
+            httpGet:
+              path: /_cluster/health
+              port: 9200
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /_cluster/health?wait_for_status=yellow
+              port: 9200
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echo-nginx
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        fsGroup: 101
+      containers:
+        - name: nginx
+          resources:
+            requests:
+              memory: '64Mi'
+              cpu: '50m'
+            limits:
+              memory: '128Mi'
+              cpu: '100m'
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            timeoutSeconds: 3
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echo-prometheus
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+        - name: prometheus
+          resources:
+            requests:
+              memory: '512Mi'
+              cpu: '250m'
+            limits:
+              memory: '1Gi'
+              cpu: '500m'
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echo-grafana
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+        - name: grafana
+          resources:
+            requests:
+              memory: '256Mi'
+              cpu: '125m'
+            limits:
+              memory: '512Mi'
+              cpu: '250m'

@@ -1,0 +1,390 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: echo-app-sa
+  namespace: echo
+  labels:
+    app: echo
+    component: rbac
+  annotations:
+    description: 'Service account for Echo application pods'
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: echo-monitoring-sa
+  namespace: echo
+  labels:
+    app: echo
+    component: rbac
+  annotations:
+    description: 'Service account for Echo monitoring components'
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: echo-database-sa
+  namespace: echo
+  labels:
+    app: echo
+    component: rbac
+  annotations:
+    description: 'Service account for Echo database components'
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: echo-app-role
+  namespace: echo
+  labels:
+    app: echo
+    component: rbac
+rules:
+  # Allow reading ConfigMaps and Secrets
+  - apiGroups: ['']
+    resources: ['configmaps', 'secrets']
+    verbs: ['get', 'list', 'watch']
+
+  # Allow reading Services for service discovery
+  - apiGroups: ['']
+    resources: ['services', 'endpoints']
+    verbs: ['get', 'list', 'watch']
+
+  # Allow reading Pods for health checks and debugging
+  - apiGroups: ['']
+    resources: ['pods']
+    verbs: ['get', 'list', 'watch']
+
+  # Allow creating Events for logging
+  - apiGroups: ['']
+    resources: ['events']
+    verbs: ['create', 'patch']
+
+  # Allow reading PersistentVolumeClaims
+  - apiGroups: ['']
+    resources: ['persistentvolumeclaims']
+    verbs: ['get', 'list', 'watch']
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: echo-monitoring-role
+  namespace: echo
+  labels:
+    app: echo
+    component: rbac
+rules:
+  # Allow reading all resources for monitoring
+  - apiGroups: ['']
+    resources: ['pods', 'services', 'endpoints', 'configmaps', 'secrets']
+    verbs: ['get', 'list', 'watch']
+
+  # Allow reading Deployments and ReplicaSets
+  - apiGroups: ['apps']
+    resources: ['deployments', 'replicasets']
+    verbs: ['get', 'list', 'watch']
+
+  # Allow reading Ingresses
+  - apiGroups: ['networking.k8s.io']
+    resources: ['ingresses']
+    verbs: ['get', 'list', 'watch']
+
+  # Allow reading PersistentVolumes and PersistentVolumeClaims
+  - apiGroups: ['']
+    resources: ['persistentvolumes', 'persistentvolumeclaims']
+    verbs: ['get', 'list', 'watch']
+
+  # Allow creating Events for alerting
+  - apiGroups: ['']
+    resources: ['events']
+    verbs: ['create', 'patch']
+
+  # Allow reading Nodes for node metrics
+  - apiGroups: ['']
+    resources: ['nodes', 'nodes/metrics', 'nodes/proxy']
+    verbs: ['get', 'list', 'watch']
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: echo-database-role
+  namespace: echo
+  labels:
+    app: echo
+    component: rbac
+rules:
+  # Allow reading ConfigMaps and Secrets for database configuration
+  - apiGroups: ['']
+    resources: ['configmaps', 'secrets']
+    verbs: ['get', 'list', 'watch']
+
+  # Allow reading Services for service discovery
+  - apiGroups: ['']
+    resources: ['services', 'endpoints']
+    verbs: ['get', 'list', 'watch']
+
+  # Allow reading own Pod information
+  - apiGroups: ['']
+    resources: ['pods']
+    verbs: ['get', 'list', 'watch']
+    resourceNames: ['echo-postgres', 'echo-redis', 'echo-elasticsearch']
+
+  # Allow creating Events for database operations
+  - apiGroups: ['']
+    resources: ['events']
+    verbs: ['create', 'patch']
+
+  # Allow reading PersistentVolumeClaims
+  - apiGroups: ['']
+    resources: ['persistentvolumeclaims']
+    verbs: ['get', 'list', 'watch']
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: echo-app-rolebinding
+  namespace: echo
+  labels:
+    app: echo
+    component: rbac
+subjects:
+  - kind: ServiceAccount
+    name: echo-app-sa
+    namespace: echo
+roleRef:
+  kind: Role
+  name: echo-app-role
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: echo-monitoring-rolebinding
+  namespace: echo
+  labels:
+    app: echo
+    component: rbac
+subjects:
+  - kind: ServiceAccount
+    name: echo-monitoring-sa
+    namespace: echo
+roleRef:
+  kind: Role
+  name: echo-monitoring-role
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: echo-database-rolebinding
+  namespace: echo
+  labels:
+    app: echo
+    component: rbac
+subjects:
+  - kind: ServiceAccount
+    name: echo-database-sa
+    namespace: echo
+roleRef:
+  kind: Role
+  name: echo-database-role
+  apiGroup: rbac.authorization.k8s.io
+---
+# ClusterRole for Prometheus to access cluster-wide metrics
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: echo-prometheus-cluster-role
+  labels:
+    app: echo
+    component: rbac
+rules:
+  # Allow reading nodes and node metrics
+  - apiGroups: ['']
+    resources: ['nodes', 'nodes/proxy', 'nodes/metrics']
+    verbs: ['get', 'list', 'watch']
+
+  # Allow reading services and endpoints across all namespaces
+  - apiGroups: ['']
+    resources: ['services', 'endpoints', 'pods']
+    verbs: ['get', 'list', 'watch']
+
+  # Allow reading ingresses across all namespaces
+  - apiGroups: ['networking.k8s.io']
+    resources: ['ingresses']
+    verbs: ['get', 'list', 'watch']
+
+  # Allow reading deployments and replicasets across all namespaces
+  - apiGroups: ['apps']
+    resources: ['deployments', 'replicasets']
+    verbs: ['get', 'list', 'watch']
+
+  # Allow reading configmaps in kube-system for cluster info
+  - apiGroups: ['']
+    resources: ['configmaps']
+    verbs: ['get']
+    resourceNames: ['cluster-info']
+
+  # Allow accessing the /metrics endpoint on the API server
+  - nonResourceURLs: ['/metrics']
+    verbs: ['get']
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: echo-prometheus-cluster-rolebinding
+  labels:
+    app: echo
+    component: rbac
+subjects:
+  - kind: ServiceAccount
+    name: echo-monitoring-sa
+    namespace: echo
+roleRef:
+  kind: ClusterRole
+  name: echo-prometheus-cluster-role
+  apiGroup: rbac.authorization.k8s.io
+---
+# PodSecurityPolicy for Echo application (if PSP is enabled)
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: echo-app-psp
+  labels:
+    app: echo
+    component: rbac
+  annotations:
+    description: 'Pod Security Policy for Echo application'
+spec:
+  privileged: false
+  allowPrivilegeEscalation: false
+  requiredDropCapabilities:
+    - ALL
+  volumes:
+    - 'configMap'
+    - 'emptyDir'
+    - 'projected'
+    - 'secret'
+    - 'downwardAPI'
+    - 'persistentVolumeClaim'
+  runAsUser:
+    rule: 'MustRunAsNonRoot'
+  seLinux:
+    rule: 'RunAsAny'
+  fsGroup:
+    rule: 'RunAsAny'
+  readOnlyRootFilesystem: false
+  hostNetwork: false
+  hostIPC: false
+  hostPID: false
+---
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: echo-database-psp
+  labels:
+    app: echo
+    component: rbac
+  annotations:
+    description: 'Pod Security Policy for Echo database components'
+spec:
+  privileged: false
+  allowPrivilegeEscalation: false
+  requiredDropCapabilities:
+    - ALL
+  allowedCapabilities:
+    - CHOWN
+    - DAC_OVERRIDE
+    - FOWNER
+    - SETGID
+    - SETUID
+  volumes:
+    - 'configMap'
+    - 'emptyDir'
+    - 'projected'
+    - 'secret'
+    - 'downwardAPI'
+    - 'persistentVolumeClaim'
+  runAsUser:
+    rule: 'MustRunAsNonRoot'
+  seLinux:
+    rule: 'RunAsAny'
+  fsGroup:
+    rule: 'RunAsAny'
+  readOnlyRootFilesystem: false
+  hostNetwork: false
+  hostIPC: false
+  hostPID: false
+---
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: echo-monitoring-psp
+  labels:
+    app: echo
+    component: rbac
+  annotations:
+    description: 'Pod Security Policy for Echo monitoring components'
+spec:
+  privileged: false
+  allowPrivilegeEscalation: false
+  requiredDropCapabilities:
+    - ALL
+  volumes:
+    - 'configMap'
+    - 'emptyDir'
+    - 'projected'
+    - 'secret'
+    - 'downwardAPI'
+    - 'persistentVolumeClaim'
+  runAsUser:
+    rule: 'MustRunAsNonRoot'
+  seLinux:
+    rule: 'RunAsAny'
+  fsGroup:
+    rule: 'RunAsAny'
+  readOnlyRootFilesystem: false
+  hostNetwork: false
+  hostIPC: false
+  hostPID: false
+---
+# Role for PSP usage
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: echo-psp-role
+  namespace: echo
+  labels:
+    app: echo
+    component: rbac
+rules:
+  - apiGroups: ['policy']
+    resources: ['podsecuritypolicies']
+    verbs: ['use']
+    resourceNames:
+      - echo-app-psp
+      - echo-database-psp
+      - echo-monitoring-psp
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: echo-psp-rolebinding
+  namespace: echo
+  labels:
+    app: echo
+    component: rbac
+subjects:
+  - kind: ServiceAccount
+    name: echo-app-sa
+    namespace: echo
+  - kind: ServiceAccount
+    name: echo-monitoring-sa
+    namespace: echo
+  - kind: ServiceAccount
+    name: echo-database-sa
+    namespace: echo
+roleRef:
+  kind: Role
+  name: echo-psp-role
+  apiGroup: rbac.authorization.k8s.io

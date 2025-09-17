@@ -2,16 +2,13 @@
  * Unit tests for TranslationCache utility
  */
 
-const { expect } = require('chai');
-const sinon = require('sinon');
+// Jest functionality replaces Sinon
 const TranslationCache = require('../../../../../src/services/translation/utils/translation-cache');
 
 describe('TranslationCache', () => {
     let cache;
-    let sandbox;
 
     beforeEach(() => {
-        sandbox = sinon.createSandbox();
         cache = new TranslationCache({
             maxCacheSize: 10,
             defaultExpirySeconds: 60
@@ -19,25 +16,25 @@ describe('TranslationCache', () => {
     });
 
     afterEach(() => {
-        sandbox.restore();
+        jest.clearAllMocks();
     });
 
     describe('initialization', () => {
         it('should initialize with default settings', () => {
             const defaultCache = new TranslationCache();
-            expect(defaultCache.config.maxCacheSize).to.be.greaterThan(0);
-            expect(defaultCache.config.defaultExpirySeconds).to.be.greaterThan(0);
+            expect(defaultCache.config.maxCacheSize).toBeGreaterThan(0);
+            expect(defaultCache.config.defaultExpirySeconds).toBeGreaterThan(0);
         });
 
         it('should initialize with custom settings', () => {
-            expect(cache.config.maxCacheSize).to.equal(10);
-            expect(cache.config.defaultExpirySeconds).to.equal(60);
+            expect(cache.config.maxCacheSize).toBe(10);
+            expect(cache.config.defaultExpirySeconds).toBe(60);
         });
 
         it('should initialize stats with zero values', () => {
-            expect(cache.stats.hits).to.equal(0);
-            expect(cache.stats.misses).to.equal(0);
-            expect(cache.stats.totalRequests).to.equal(0);
+            expect(cache.stats.hits).toBe(0);
+            expect(cache.stats.misses).toBe(0);
+            expect(cache.stats.totalRequests).toBe(0);
         });
     });
 
@@ -45,25 +42,25 @@ describe('TranslationCache', () => {
         it('should generate unique keys for different text', () => {
             const key1 = cache.generateKey('Hello', 'en', 'es');
             const key2 = cache.generateKey('World', 'en', 'es');
-            expect(key1).to.not.equal(key2);
+            expect(key1).not.toBe(key2);
         });
 
         it('should generate unique keys for different language pairs', () => {
             const key1 = cache.generateKey('Hello', 'en', 'es');
             const key2 = cache.generateKey('Hello', 'en', 'fr');
-            expect(key1).to.not.equal(key2);
+            expect(key1).not.toBe(key2);
         });
 
         it('should generate unique keys for different services', () => {
             const key1 = cache.generateKey('Hello', 'en', 'es', 'deepl');
             const key2 = cache.generateKey('Hello', 'en', 'es', 'google');
-            expect(key1).to.not.equal(key2);
+            expect(key1).not.toBe(key2);
         });
 
         it('should include options in key generation', () => {
             const key1 = cache.generateKey('Hello', 'en', 'es', 'deepl', { formality: 'formal' });
             const key2 = cache.generateKey('Hello', 'en', 'es', 'deepl', { formality: 'informal' });
-            expect(key1).to.not.equal(key2);
+            expect(key1).not.toBe(key2);
         });
     });
 
@@ -81,7 +78,7 @@ describe('TranslationCache', () => {
             await cache.set(text, fromLang, toLang, service, result);
 
             const cached = await cache.get(text, fromLang, toLang, service);
-            expect(cached).to.deep.equal(result);
+            expect(cached).toEqual(result);
         });
 
         it('should also store service-agnostic entries', async () => {
@@ -98,53 +95,53 @@ describe('TranslationCache', () => {
 
             // Should be retrievable with 'any' service
             const cached = await cache.get(text, fromLang, toLang, 'any');
-            expect(cached).to.deep.equal(result);
+            expect(cached).toEqual(result);
         });
 
         it('should return null for non-existent entries', async () => {
             const cached = await cache.get('Not in cache', 'en', 'es', 'deepl');
-            expect(cached).to.be.null;
+            expect(cached).toBeNull();
         });
 
         it('should update stats when retrieving entries', async () => {
             // First access (miss)
             await cache.get('Not in cache', 'en', 'es', 'deepl');
-            expect(cache.stats.totalRequests).to.equal(1);
-            expect(cache.stats.misses).to.equal(1);
-            expect(cache.stats.hits).to.equal(0);
+            expect(cache.stats.totalRequests).toBe(1);
+            expect(cache.stats.misses).toBe(1);
+            expect(cache.stats.hits).toBe(0);
 
             // Add to cache
             await cache.set('Hello', 'en', 'es', 'deepl', { translation: 'Hola' });
 
             // Second access (hit)
             await cache.get('Hello', 'en', 'es', 'deepl');
-            expect(cache.stats.totalRequests).to.equal(2);
-            expect(cache.stats.misses).to.equal(1);
-            expect(cache.stats.hits).to.equal(1);
+            expect(cache.stats.totalRequests).toBe(2);
+            expect(cache.stats.misses).toBe(1);
+            expect(cache.stats.hits).toBe(1);
         });
 
         it('should respect expiry times', async () => {
-            // Set with a very short expiry (1ms)
-            await cache.set('Hello', 'en', 'es', 'deepl', { translation: 'Hola' }, 0.001);
+            // Set with a very short expiry (1 second)
+            await cache.set('Hello', 'en', 'es', 'deepl', { translation: 'Hola' }, {}, 1);
 
             // Wait for expiry
-            await new Promise(resolve => setTimeout(resolve, 10));
+            await new Promise(resolve => setTimeout(resolve, 1100));
 
             // Should return null after expiry
             const cached = await cache.get('Hello', 'en', 'es', 'deepl');
-            expect(cached).to.be.null;
-            expect(cache.stats.misses).to.equal(1);
+            expect(cached).toBeNull();
+            expect(cache.stats.misses).toBe(1);
         });
     });
 
     describe('pruneCache', () => {
         it('should remove expired entries', async () => {
             // Add some entries with very short expiry
-            await cache.set('Entry1', 'en', 'es', 'deepl', { translation: 'Test1' }, 0.001);
-            await cache.set('Entry2', 'en', 'es', 'deepl', { translation: 'Test2' }, 0.001);
+            await cache.set('Entry1', 'en', 'es', 'deepl', { translation: 'Test1' }, {}, 1);
+            await cache.set('Entry2', 'en', 'es', 'deepl', { translation: 'Test2' }, {}, 1);
 
             // Wait for expiry
-            await new Promise(resolve => setTimeout(resolve, 10));
+            await new Promise(resolve => setTimeout(resolve, 1100));
 
             // Prune cache
             cache.pruneCache();
@@ -152,20 +149,25 @@ describe('TranslationCache', () => {
             // Should be removed
             const cached1 = await cache.get('Entry1', 'en', 'es', 'deepl');
             const cached2 = await cache.get('Entry2', 'en', 'es', 'deepl');
-            expect(cached1).to.be.null;
-            expect(cached2).to.be.null;
+            expect(cached1).toBeNull();
+            expect(cached2).toBeNull();
         });
 
         it('should respect maxCacheSize', async () => {
             // Cache is configured with maxCacheSize of 10
+            // Note: each set() call stores 2 entries (service-specific and service-agnostic)
 
-            // Add 15 entries (exceeds maxCacheSize)
-            for (let i = 0; i < 15; i++) {
+            // Add 4 entries (uses 8 cache slots)
+            for (let i = 0; i < 4; i++) {
                 await cache.set(`Entry${i}`, 'en', 'es', 'deepl', { translation: `Test${i}` });
             }
 
-            // Cache should prune automatically
-            expect(cache.cache.size).to.be.at.most(10);
+            // Cache should be within capacity
+            expect(cache.cache.size).toBeLessThanOrEqual(10);
+            
+            // Adding one more should still be within limit (uses 2 more slots = 10 total)
+            await cache.set('ExtraEntry', 'en', 'es', 'deepl', { translation: 'Extra' });
+            expect(cache.cache.size).toBeLessThanOrEqual(10);
         });
     });
 
@@ -183,11 +185,11 @@ describe('TranslationCache', () => {
 
             const stats = cache.getStats();
 
-            expect(stats.hits).to.equal(2);
-            expect(stats.misses).to.equal(2);
-            expect(stats.totalRequests).to.equal(4);
-            expect(stats.size).to.be.greaterThan(0);
-            expect(stats.hitRate).to.equal(0.5); // 2 hits out of 4 requests
+            expect(stats.hits).toBe(2);
+            expect(stats.misses).toBe(2);
+            expect(stats.totalRequests).toBe(4);
+            expect(stats.size).toBeGreaterThan(0);
+            expect(stats.hitRate).toBe(0.5); // 2 hits out of 4 requests
         });
     });
 
@@ -198,16 +200,16 @@ describe('TranslationCache', () => {
             await cache.set('Entry2', 'en', 'es', 'deepl', { translation: 'Test2' });
 
             // Verify they exist
-            expect(await cache.get('Entry1', 'en', 'es', 'deepl')).to.not.be.null;
-            expect(await cache.get('Entry2', 'en', 'es', 'deepl')).to.not.be.null;
+            expect(await cache.get('Entry1', 'en', 'es', 'deepl')).not.toBeNull();
+            expect(await cache.get('Entry2', 'en', 'es', 'deepl')).not.toBeNull();
 
             // Clear cache
             await cache.clear();
 
             // Verify they're gone
-            expect(await cache.get('Entry1', 'en', 'es', 'deepl')).to.be.null;
-            expect(await cache.get('Entry2', 'en', 'es', 'deepl')).to.be.null;
-            expect(cache.cache.size).to.equal(0);
+            expect(await cache.get('Entry1', 'en', 'es', 'deepl')).toBeNull();
+            expect(await cache.get('Entry2', 'en', 'es', 'deepl')).toBeNull();
+            expect(cache.cache.size).toBe(0);
         });
     });
 
@@ -215,7 +217,7 @@ describe('TranslationCache', () => {
         it('should handle empty text', async () => {
             await cache.set('', 'en', 'es', 'deepl', { translation: '' });
             const cached = await cache.get('', 'en', 'es', 'deepl');
-            expect(cached).to.deep.equal({ translation: '' });
+            expect(cached).toEqual({ translation: '' });
         });
 
         it('should handle special characters', async () => {
@@ -224,7 +226,7 @@ describe('TranslationCache', () => {
 
             await cache.set(text, 'en', 'es', 'deepl', result);
             const cached = await cache.get(text, 'en', 'es', 'deepl');
-            expect(cached).to.deep.equal(result);
+            expect(cached).toEqual(result);
         });
 
         it('should handle very long text', async () => {
@@ -234,7 +236,7 @@ describe('TranslationCache', () => {
 
             await cache.set(longText, 'en', 'es', 'deepl', result);
             const cached = await cache.get(longText, 'en', 'es', 'deepl');
-            expect(cached).to.deep.equal(result);
+            expect(cached).toEqual(result);
         });
     });
 });

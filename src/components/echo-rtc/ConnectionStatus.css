@@ -1,0 +1,461 @@
+/* Connection Status Styles */
+.connection-status {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 0.5rem;
+  overflow: visible;
+}
+
+/* Main Status Display */
+.connection-status__main {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.connection-status__main:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* Status Icon */
+.connection-status__icon {
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+/* Signal Strength */
+.connection-status__signal {
+  display: flex;
+  gap: 0.125rem;
+  align-items: flex-end;
+  height: 0.75rem;
+}
+
+.connection-status__signal-bar {
+  width: 0.125rem;
+  background: #e0e0e0;
+  border-radius: 0.0625rem;
+  transition: all 0.2s ease;
+}
+
+.connection-status__signal-bar--active {
+  background: #4caf50;
+}
+
+.connection-status__signal-bar:nth-child(1) {
+  height: 25%;
+}
+.connection-status__signal-bar:nth-child(2) {
+  height: 50%;
+}
+.connection-status__signal-bar:nth-child(3) {
+  height: 75%;
+}
+.connection-status__signal-bar:nth-child(4) {
+  height: 100%;
+}
+
+/* Status Text */
+.connection-status__text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.connection-status__status {
+  font-size: 0.875rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.connection-status__participants {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.7);
+  white-space: nowrap;
+}
+
+/* Duration */
+.connection-status__duration {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.7);
+  font-family: 'Monaco', 'Menlo', monospace;
+  white-space: nowrap;
+}
+
+/* Dropdown */
+.connection-status__dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 0.5rem;
+  background: rgba(0, 0, 0, 0.9);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  z-index: 1000;
+  min-width: 350px;
+  max-height: 400px;
+  overflow-y: auto;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.connection-status__dropdown::before {
+  content: '';
+  position: absolute;
+  top: -0.5rem;
+  left: 1rem;
+  width: 1rem;
+  height: 1rem;
+  background: rgba(0, 0, 0, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-bottom: none;
+  border-right: none;
+  transform: rotate(45deg);
+  border-radius: 0.125rem 0 0 0;
+}
+
+/* Dropdown Sections */
+.connection-status__section {
+  margin-bottom: 1rem;
+}
+
+.connection-status__section:last-child {
+  margin-bottom: 0;
+}
+
+.connection-status__section h4 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #ffffff;
+  margin: 0 0 0.5rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Connection Details */
+.connection-status__details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.connection-status__detail {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.375rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.connection-status__detail:last-child {
+  border-bottom: none;
+}
+
+.connection-status__detail-label {
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 500;
+}
+
+.connection-status__detail-value {
+  font-size: 0.875rem;
+  color: #ffffff;
+  font-family: 'Monaco', 'Menlo', monospace;
+  text-align: right;
+}
+
+/* Error Information */
+.connection-status__error {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: rgba(244, 67, 54, 0.1);
+  border: 1px solid rgba(244, 67, 54, 0.3);
+  border-radius: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.connection-status__error-icon {
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.connection-status__error-message {
+  font-size: 0.875rem;
+  color: #ffffff;
+  line-height: 1.4;
+}
+
+.connection-status__reconnect-info {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.7);
+  margin-top: 0.5rem;
+  text-align: center;
+}
+
+/* Actions */
+.connection-status__actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.connection-status__action-button {
+  flex: 1;
+  min-width: 0;
+  padding: 0.5rem 0.75rem;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 0.375rem;
+  color: #ffffff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.connection-status__action-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.connection-status__action-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.connection-status__reconnect-button {
+  background: #4caf50;
+  border-color: #4caf50;
+}
+
+.connection-status__reconnect-button:hover {
+  background: #45a049;
+}
+
+.connection-status__reconnect-button:disabled {
+  background: rgba(76, 175, 80, 0.3);
+  border-color: rgba(76, 175, 80, 0.3);
+}
+
+/* Statistics */
+.connection-status__stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.connection-status__stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 0.375rem;
+}
+
+.connection-status__stat-label {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 500;
+}
+
+.connection-status__stat-value {
+  font-size: 0.875rem;
+  color: #ffffff;
+  font-family: 'Monaco', 'Menlo', monospace;
+  font-weight: 600;
+}
+
+/* Compact Mode */
+.connection-status--compact {
+  padding: 0.25rem 0.5rem;
+}
+
+.connection-status--compact .connection-status__text {
+  display: none;
+}
+
+.connection-status--compact .connection-status__duration {
+  display: none;
+}
+
+/* Minimal Mode */
+.connection-status--minimal {
+  background: transparent;
+}
+
+.connection-status--minimal:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.connection-status--minimal .connection-status__signal,
+.connection-status--minimal .connection-status__text,
+.connection-status--minimal .connection-status__duration {
+  display: none;
+}
+
+/* Status Variants */
+.connection-status--connecting .connection-status__icon {
+  animation: connection-status-pulse 1.5s infinite;
+}
+
+@keyframes connection-status-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.connection-status--error .connection-status__main {
+  background: rgba(244, 67, 54, 0.1);
+}
+
+.connection-status--warning .connection-status__main {
+  background: rgba(255, 152, 0, 0.1);
+}
+
+.connection-status--success .connection-status__main {
+  background: rgba(76, 175, 80, 0.1);
+}
+
+/* Scrollbar Styling */
+.connection-status__dropdown::-webkit-scrollbar {
+  width: 0.25rem;
+}
+
+.connection-status__dropdown::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 0.125rem;
+}
+
+.connection-status__dropdown::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 0.125rem;
+}
+
+.connection-status__dropdown::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .connection-status__dropdown {
+    min-width: 300px;
+    padding: 0.75rem;
+  }
+
+  .connection-status__stats {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .connection-status__actions {
+    flex-direction: column;
+  }
+
+  .connection-status__action-button {
+    flex: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .connection-status__dropdown {
+    left: -50%;
+    right: -50%;
+    min-width: 280px;
+  }
+
+  .connection-status__main {
+    padding: 0.375rem 0.5rem;
+  }
+
+  .connection-status__text {
+    display: none;
+  }
+
+  .connection-status__duration {
+    display: none;
+  }
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  .connection-status__main,
+  .connection-status__signal-bar,
+  .connection-status__action-button {
+    transition: none;
+  }
+
+  .connection-status--connecting .connection-status__icon {
+    animation: none;
+  }
+}
+
+/* High Contrast Mode */
+@media (prefers-contrast: high) {
+  .connection-status {
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid #ffffff;
+  }
+
+  .connection-status__dropdown {
+    background: #000000;
+    border-color: #ffffff;
+  }
+
+  .connection-status__detail {
+    border-color: #ffffff;
+  }
+
+  .connection-status__action-button {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: #ffffff;
+  }
+}
+
+/* Dark Theme Adjustments */
+@media (prefers-color-scheme: dark) {
+  .connection-status__dropdown {
+    background: rgba(0, 0, 0, 0.95);
+  }
+}
+
+/* Loading Animation */
+.connection-status__loading {
+  display: inline-block;
+  width: 0.75rem;
+  height: 0.75rem;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top: 2px solid #ffffff;
+  border-radius: 50%;
+  animation: connection-status-spin 1s linear infinite;
+}
+
+@keyframes connection-status-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}

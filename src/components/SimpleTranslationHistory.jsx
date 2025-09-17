@@ -17,31 +17,38 @@ export const SimpleTranslationHistory = ({ translations = [], onSelect, onDelete
   const filteredTranslations = useMemo(() => {
     if (!searchQuery) return localTranslations;
     const query = searchQuery.toLowerCase();
-    const filtered = localTranslations.filter(translation => 
-      translation.originalText.toLowerCase().includes(query) ||
-      translation.translatedText.toLowerCase().includes(query)
+    const filtered = localTranslations.filter(
+      (translation) =>
+        translation.originalText.toLowerCase().includes(query) ||
+        translation.translatedText.toLowerCase().includes(query)
     );
     return filtered;
   }, [localTranslations, searchQuery]);
-  
+
   // Show no translations message if there are no translations or no matches
-  const showNoTranslations = localTranslations.length === 0 || 
-    (searchQuery && filteredTranslations.length === 0);
+  const showNoTranslations =
+    localTranslations.length === 0 || (searchQuery && filteredTranslations.length === 0);
 
-  const handleSelect = useCallback((translation) => {
-    if (onSelect) {
-      onSelect(translation);
-    }
-  }, [onSelect]);
+  const handleSelect = useCallback(
+    (translation) => {
+      if (onSelect) {
+        onSelect(translation);
+      }
+    },
+    [onSelect]
+  );
 
-  const handleDelete = useCallback((translation, e) => {
-    e.stopPropagation();
-    const newTranslations = localTranslations.filter(t => t.id !== translation.id);
-    setLocalTranslations(newTranslations);
-    if (onDelete) {
-      onDelete(translation);
-    }
-  }, [localTranslations, onDelete]);
+  const handleDelete = useCallback(
+    (translation, e) => {
+      e.stopPropagation();
+      const newTranslations = localTranslations.filter((t) => t.id !== translation.id);
+      setLocalTranslations(newTranslations);
+      if (onDelete) {
+        onDelete(translation);
+      }
+    },
+    [localTranslations, onDelete]
+  );
 
   return (
     <div data-testid="translation-history" className="translation-history">
@@ -55,11 +62,15 @@ export const SimpleTranslationHistory = ({ translations = [], onSelect, onDelete
       />
       <div className="translation-list">
         {showNoTranslations ? (
-          <p>{localTranslations.length === 0 ? t('noTranslationHistory') : t('noMatchingTranslations')}</p>
+          <p>
+            {localTranslations.length === 0
+              ? t('noTranslationHistory')
+              : t('noMatchingTranslations')}
+          </p>
         ) : (
-          filteredTranslations.map(translation => (
-            <div 
-              key={translation.id} 
+          filteredTranslations.map((translation) => (
+            <div
+              key={translation.id}
               className="translation-item"
               onClick={() => handleSelect(translation)}
             >
@@ -69,10 +80,7 @@ export const SimpleTranslationHistory = ({ translations = [], onSelect, onDelete
               <div className="translation-meta">
                 From: {translation.sourceLanguage} To: {translation.targetLanguage}
               </div>
-              <button 
-                className="delete-button" 
-                onClick={(e) => handleDelete(translation, e)}
-              >
+              <button className="delete-button" onClick={(e) => handleDelete(translation, e)}>
                 {t('delete')}
               </button>
             </div>

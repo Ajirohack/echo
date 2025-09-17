@@ -4,7 +4,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const sinon = require('sinon');
+// Sinon functionality replaced with Jest mocks
 
 /**
  * Load test data from fixtures

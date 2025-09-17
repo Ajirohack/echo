@@ -39,11 +39,11 @@ class AudioCapture extends EventEmitter {
       if (source === 'mic' || source === 'both') {
         await this.startMicCapture(deviceId);
       }
-      
+
       if (source === 'system' || source === 'both') {
         await this.startSystemCapture(deviceId);
       }
-      
+
       this.emit('start');
     } catch (error) {
       this.emit('error', error);
@@ -60,11 +60,15 @@ class AudioCapture extends EventEmitter {
     return new Promise((resolve, reject) => {
       try {
         const args = [
-          '-f', 's16le',
-          '-ar', this.sampleRate,
-          '-ac', this.channels,
-          '-t', 'wav',
-          'pipe:1'
+          '-f',
+          's16le',
+          '-ar',
+          this.sampleRate,
+          '-ac',
+          this.channels,
+          '-t',
+          'wav',
+          'pipe:1',
         ];
 
         if (deviceId) {
@@ -80,7 +84,7 @@ class AudioCapture extends EventEmitter {
         }
 
         this.micStream = spawn('ffmpeg', args, { stdio: ['ignore', 'pipe', 'inherit'] });
-        
+
         this.micStream.stdout.on('data', (chunk) => {
           this.audioChunks.push(chunk);
           this.emit('data', { source: 'mic', data: chunk });
@@ -123,20 +127,25 @@ class AudioCapture extends EventEmitter {
     // On macOS, we can use Soundflower or BlackHole for system audio capture
     // This requires the virtual audio device to be set as the system output
     const virtualDevice = deviceId || 'BlackHole 2ch';
-    
+
     return new Promise((resolve, reject) => {
       try {
         const args = [
-          '-f', 'avfoundation',
-          '-i', virtualDevice,
-          '-f', 's16le',
-          '-ar', this.sampleRate,
-          '-ac', this.channels,
-          'pipe:1'
+          '-f',
+          'avfoundation',
+          '-i',
+          virtualDevice,
+          '-f',
+          's16le',
+          '-ar',
+          this.sampleRate,
+          '-ac',
+          this.channels,
+          'pipe:1',
         ];
 
         this.systemStream = spawn('ffmpeg', args, { stdio: ['ignore', 'pipe', 'inherit'] });
-        
+
         this.systemStream.stdout.on('data', (chunk) => {
           this.audioChunks.push(chunk);
           this.emit('data', { source: 'system', data: chunk });
@@ -163,20 +172,25 @@ class AudioCapture extends EventEmitter {
   async startSystemCaptureWindows(deviceId) {
     // On Windows, we can use VB-Cable or similar virtual audio devices
     const virtualDevice = deviceId || 'CABLE Input (VB-Audio Virtual Cable)';
-    
+
     return new Promise((resolve, reject) => {
       try {
         const args = [
-          '-f', 'dshow',
-          '-i', `audio=${virtualDevice}`,
-          '-f', 's16le',
-          '-ar', this.sampleRate,
-          '-ac', this.channels,
-          'pipe:1'
+          '-f',
+          'dshow',
+          '-i',
+          `audio=${virtualDevice}`,
+          '-f',
+          's16le',
+          '-ar',
+          this.sampleRate,
+          '-ac',
+          this.channels,
+          'pipe:1',
         ];
 
         this.systemStream = spawn('ffmpeg', args, { stdio: ['ignore', 'pipe', 'inherit'] });
-        
+
         this.systemStream.stdout.on('data', (chunk) => {
           this.audioChunks.push(chunk);
           this.emit('data', { source: 'system', data: chunk });
@@ -203,20 +217,25 @@ class AudioCapture extends EventEmitter {
   async startSystemCaptureLinux(deviceId) {
     // On Linux, we can use PulseAudio's monitor sources
     const virtualDevice = deviceId || 'alsa_output.pci-0000_00_1f.3.analog-stereo.monitor';
-    
+
     return new Promise((resolve, reject) => {
       try {
         const args = [
-          '-f', 'pulse',
-          '-i', virtualDevice,
-          '-f', 's16le',
-          '-ar', this.sampleRate,
-          '-ac', this.channels,
-          'pipe:1'
+          '-f',
+          'pulse',
+          '-i',
+          virtualDevice,
+          '-f',
+          's16le',
+          '-ar',
+          this.sampleRate,
+          '-ac',
+          this.channels,
+          'pipe:1',
         ];
 
         this.systemStream = spawn('ffmpeg', args, { stdio: ['ignore', 'pipe', 'inherit'] });
-        
+
         this.systemStream.stdout.on('data', (chunk) => {
           this.audioChunks.push(chunk);
           this.emit('data', { source: 'system', data: chunk });
@@ -246,25 +265,29 @@ class AudioCapture extends EventEmitter {
    */
   async stopCapture() {
     this.isCapturing = false;
-    
+
     const stopPromises = [];
-    
+
     if (this.micStream) {
-      stopPromises.push(new Promise((resolve) => {
-        this.micStream.once('exit', resolve);
-        this.micStream.kill();
-        this.micStream = null;
-      }));
+      stopPromises.push(
+        new Promise((resolve) => {
+          this.micStream.once('exit', resolve);
+          this.micStream.kill();
+          this.micStream = null;
+        })
+      );
     }
-    
+
     if (this.systemStream) {
-      stopPromises.push(new Promise((resolve) => {
-        this.systemStream.once('exit', resolve);
-        this.systemStream.kill();
-        this.systemStream = null;
-      }));
+      stopPromises.push(
+        new Promise((resolve) => {
+          this.systemStream.once('exit', resolve);
+          this.systemStream.kill();
+          this.systemStream = null;
+        })
+      );
     }
-    
+
     await Promise.all(stopPromises);
     this.emit('stop');
   }

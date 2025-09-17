@@ -1,0 +1,493 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: echo-app-hpa
+  namespace: echo
+  labels:
+    app: echo-app
+    component: autoscaling
+  annotations:
+    description: 'HPA for Echo application pods'
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: echo-app
+  minReplicas: 3
+  maxReplicas: 20
+  metrics:
+    # CPU utilization target
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+
+    # Memory utilization target
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+
+    # Custom metrics - HTTP requests per second
+    - type: Pods
+      pods:
+        metric:
+          name: http_requests_per_second
+        target:
+          type: AverageValue
+          averageValue: '100'
+
+    # Custom metrics - WebSocket connections
+    - type: Pods
+      pods:
+        metric:
+          name: websocket_connections
+        target:
+          type: AverageValue
+          averageValue: '50'
+
+    # Custom metrics - Translation queue length
+    - type: Pods
+      pods:
+        metric:
+          name: translation_queue_length
+        target:
+          type: AverageValue
+          averageValue: '10'
+
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          value: 10
+          periodSeconds: 60
+        - type: Pods
+          value: 2
+          periodSeconds: 60
+      selectPolicy: Min
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Percent
+          value: 50
+          periodSeconds: 60
+        - type: Pods
+          value: 4
+          periodSeconds: 60
+      selectPolicy: Max
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: echo-nginx-hpa
+  namespace: echo
+  labels:
+    app: echo-nginx
+    component: autoscaling
+  annotations:
+    description: 'HPA for Echo Nginx proxy pods'
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: echo-nginx
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    # CPU utilization target
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 60
+
+    # Memory utilization target
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 70
+
+    # Custom metrics - Nginx requests per second
+    - type: Pods
+      pods:
+        metric:
+          name: nginx_http_requests_per_second
+        target:
+          type: AverageValue
+          averageValue: '200'
+
+    # Custom metrics - Nginx active connections
+    - type: Pods
+      pods:
+        metric:
+          name: nginx_connections_active
+        target:
+          type: AverageValue
+          averageValue: '100'
+
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          value: 20
+          periodSeconds: 60
+        - type: Pods
+          value: 1
+          periodSeconds: 60
+      selectPolicy: Min
+    scaleUp:
+      stabilizationWindowSeconds: 30
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 30
+        - type: Pods
+          value: 2
+          periodSeconds: 30
+      selectPolicy: Max
+---
+# VerticalPodAutoscaler for database components (requires VPA to be installed)
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: echo-postgres-vpa
+  namespace: echo
+  labels:
+    app: echo-postgres
+    component: autoscaling
+  annotations:
+    description: 'VPA for Echo PostgreSQL database'
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: echo-postgres
+  updatePolicy:
+    updateMode: 'Auto'
+  resourcePolicy:
+    containerPolicies:
+      - containerName: postgres
+        minAllowed:
+          cpu: 250m
+          memory: 512Mi
+        maxAllowed:
+          cpu: 2000m
+          memory: 4Gi
+        controlledResources: ['cpu', 'memory']
+        controlledValues: RequestsAndLimits
+      - containerName: postgres-exporter
+        minAllowed:
+          cpu: 50m
+          memory: 64Mi
+        maxAllowed:
+          cpu: 200m
+          memory: 256Mi
+        controlledResources: ['cpu', 'memory']
+        controlledValues: RequestsAndLimits
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: echo-redis-vpa
+  namespace: echo
+  labels:
+    app: echo-redis
+    component: autoscaling
+  annotations:
+    description: 'VPA for Echo Redis cache'
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: echo-redis
+  updatePolicy:
+    updateMode: 'Auto'
+  resourcePolicy:
+    containerPolicies:
+      - containerName: redis
+        minAllowed:
+          cpu: 100m
+          memory: 128Mi
+        maxAllowed:
+          cpu: 1000m
+          memory: 2Gi
+        controlledResources: ['cpu', 'memory']
+        controlledValues: RequestsAndLimits
+      - containerName: redis-exporter
+        minAllowed:
+          cpu: 25m
+          memory: 32Mi
+        maxAllowed:
+          cpu: 100m
+          memory: 128Mi
+        controlledResources: ['cpu', 'memory']
+        controlledValues: RequestsAndLimits
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: echo-elasticsearch-vpa
+  namespace: echo
+  labels:
+    app: echo-elasticsearch
+    component: autoscaling
+  annotations:
+    description: 'VPA for Echo Elasticsearch search engine'
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: echo-elasticsearch
+  updatePolicy:
+    updateMode: 'Auto'
+  resourcePolicy:
+    containerPolicies:
+      - containerName: elasticsearch
+        minAllowed:
+          cpu: 500m
+          memory: 2Gi
+        maxAllowed:
+          cpu: 4000m
+          memory: 8Gi
+        controlledResources: ['cpu', 'memory']
+        controlledValues: RequestsAndLimits
+      - containerName: elasticsearch-exporter
+        minAllowed:
+          cpu: 50m
+          memory: 64Mi
+        maxAllowed:
+          cpu: 200m
+          memory: 256Mi
+        controlledResources: ['cpu', 'memory']
+        controlledValues: RequestsAndLimits
+---
+# PodDisruptionBudget for Echo application
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: echo-app-pdb
+  namespace: echo
+  labels:
+    app: echo-app
+    component: availability
+  annotations:
+    description: 'PDB for Echo application pods'
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: echo-app
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: echo-nginx-pdb
+  namespace: echo
+  labels:
+    app: echo-nginx
+    component: availability
+  annotations:
+    description: 'PDB for Echo Nginx proxy pods'
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: echo-nginx
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: echo-postgres-pdb
+  namespace: echo
+  labels:
+    app: echo-postgres
+    component: availability
+  annotations:
+    description: 'PDB for Echo PostgreSQL database'
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: echo-postgres
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: echo-redis-pdb
+  namespace: echo
+  labels:
+    app: echo-redis
+    component: availability
+  annotations:
+    description: 'PDB for Echo Redis cache'
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: echo-redis
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: echo-elasticsearch-pdb
+  namespace: echo
+  labels:
+    app: echo-elasticsearch
+    component: availability
+  annotations:
+    description: 'PDB for Echo Elasticsearch search engine'
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: echo-elasticsearch
+---
+# Custom Resource Definition for Echo-specific metrics (if using custom metrics)
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: echometrics.echo.io
+  labels:
+    app: echo
+    component: metrics
+spec:
+  group: echo.io
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                metricName:
+                  type: string
+                targetValue:
+                  type: string
+                scaleTargetRef:
+                  type: object
+                  properties:
+                    apiVersion:
+                      type: string
+                    kind:
+                      type: string
+                    name:
+                      type: string
+            status:
+              type: object
+              properties:
+                currentValue:
+                  type: string
+                lastScaleTime:
+                  type: string
+                  format: date-time
+  scope: Namespaced
+  names:
+    plural: echometrics
+    singular: echometric
+    kind: EchoMetric
+    shortNames:
+      - em
+---
+# ServiceMonitor for Prometheus Operator (if using Prometheus Operator)
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: echo-app-servicemonitor
+  namespace: echo
+  labels:
+    app: echo-app
+    component: monitoring
+spec:
+  selector:
+    matchLabels:
+      app: echo-app
+  endpoints:
+    - port: metrics
+      interval: 15s
+      path: /metrics
+      honorLabels: true
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: echo-nginx-servicemonitor
+  namespace: echo
+  labels:
+    app: echo-nginx
+    component: monitoring
+spec:
+  selector:
+    matchLabels:
+      app: echo-nginx
+  endpoints:
+    - port: metrics
+      interval: 30s
+      path: /metrics
+      honorLabels: true
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: echo-postgres-servicemonitor
+  namespace: echo
+  labels:
+    app: echo-postgres
+    component: monitoring
+spec:
+  selector:
+    matchLabels:
+      app: echo-postgres
+  endpoints:
+    - port: metrics
+      interval: 30s
+      path: /metrics
+      honorLabels: true
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: echo-redis-servicemonitor
+  namespace: echo
+  labels:
+    app: echo-redis
+    component: monitoring
+spec:
+  selector:
+    matchLabels:
+      app: echo-redis
+  endpoints:
+    - port: metrics
+      interval: 30s
+      path: /metrics
+      honorLabels: true
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: echo-elasticsearch-servicemonitor
+  namespace: echo
+  labels:
+    app: echo-elasticsearch
+    component: monitoring
+spec:
+  selector:
+    matchLabels:
+      app: echo-elasticsearch
+  endpoints:
+    - port: metrics
+      interval: 30s
+      path: /metrics
+      honorLabels: true

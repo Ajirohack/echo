@@ -1,12 +1,29 @@
-const { app, BrowserWindow, ipcMain, dialog, session, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, session, Menu, shell, systemPreferences } = require('electron');
 const path = require('path');
+
+// Load environment variables only in development
+if (process.env.NODE_ENV !== 'production') {
+  try {
+    require('dotenv').config();
+  } catch (_) {
+    // dotenv is optional in production builds; ignore if not present
+  }
+}
+
 const logger = require('./src/utils/logger');
 const { initializeAudioHandlers, cleanupAudioHandlers } = require('./src/ipc/audioHandlers');
+const { initializeSettingsHandlers, cleanupSettingsHandlers } = require('./src/ipc/settingsHandlers');
+const { initializeTTSHandlers, cleanupTTSHandlers } = require('./src/ipc/ttsHandlers');
 const autoUpdater = require('./src/services/auto-updater');
+const SetupAutomation = require('./src/services/setup-automation');
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
-if (require('electron-squirrel-startup')) {
-  app.quit();
+try {
+  if (require('electron-squirrel-startup')) {
+    app.quit();
+  }
+} catch (error) {
+  logger.warn('electron-squirrel-startup not available, skipping Windows installer check');
 }
 
 // Keep a global reference of the window object
@@ -83,6 +100,8 @@ app.on('window-all-closed', () => {
 app.on('will-quit', () => {
   logger.info('Cleaning up resources before quit');
   cleanupAudioHandlers();
+  cleanupSettingsHandlers();
+  cleanupTTSHandlers();
 });
 
 // Log application events
@@ -90,34 +109,36 @@ app.on('will-quit', () => {
   logger.info('Application is quitting');
 });
 
-// Initialize audio handlers
-let audioHandlersInitialized = false;
+// Initialize handlers
+let handlersInitialized = false;
 
-// Handle audio recording and device management via IPC
+// Handle IPC communication
 const initializeAppHandlers = () => {
-  if (audioHandlersInitialized) return;
+  if (handlersInitialized) return;
 
-  // Initialize audio handlers
+  // Initialize all IPC handlers
   initializeAudioHandlers();
-  audioHandlersInitialized = true;
+  initializeSettingsHandlers();
+  initializeTTSHandlers();
+  handlersInitialized = true;
 
-  logger.info('App IPC handlers initialized');
+  logger.info('All IPC handlers initialized');
 };
 
 // Create application menu
 const createMenu = () => {
   const template = [
     {
-      label: 'Universal Translator',
+      label: 'echo',
       submenu: [
         {
-          label: 'About Universal Translator',
+          label: 'About echo',
           click: () => {
             dialog.showMessageBox(mainWindow, {
               type: 'info',
-              title: 'About Universal Translator',
-              message: 'Universal Translator',
-              detail: `Version ${app.getVersion()}\n\nReal-time multi-platform translation application\n\nCopyright © 2025 Universal Translator Team`
+              title: 'About echo',
+              message: 'echo',
+              detail: `Version ${app.getVersion()}\n\nReal-time multi-platform translation application\n\nCopyright © 2025 WhyteHoux.ai`
             });
           }
         },
@@ -190,63 +211,19 @@ const createMenu = () => {
         },
         { type: 'separator' },
         {
-          label: 'Toggle Microphone',
-          accelerator: 'CmdOrCtrl+Shift+M',
-          click: () => {
-            mainWindow.webContents.send('toggle-microphone');
-          }
-        },
-        {
-          label: 'Switch Language',
-          accelerator: 'CmdOrCtrl+Shift+L',
-          click: () => {
-            mainWindow.webContents.send('switch-language');
-          }
-        }
-      ]
-    },
-    {
-      label: 'Help',
-      submenu: [
-        {
-          label: 'User Guide',
-          click: () => {
-            require('electron').shell.openExternal('https://docs.universaltranslator.app');
-          }
-        },
-        {
-          label: 'API Setup Guide',
-          click: () => {
-            require('electron').shell.openExternal('https://docs.universaltranslator.app/api-setup');
-          }
-        },
-        {
-          label: 'Troubleshooting',
-          click: () => {
-            require('electron').shell.openExternal('https://docs.universaltranslator.app/troubleshooting');
-          }
-        },
-        { type: 'separator' },
-        {
-          label: 'Report Issue',
-          click: () => {
-            require('electron').shell.openExternal('https://github.com/your-repo/universal-translator/issues');
-          }
-        },
-        {
-          label: 'Join Community',
-          click: () => {
-            require('electron').shell.openExternal('https://discord.gg/universaltranslator');
+          label: 'Open Troubleshooting Guide',
+          click: async () => {
+            const url = await SetupAutomation.openTroubleshootingGuide();
+            shell.openExternal(url);
           }
         }
       ]
     }
   ];
 
-  // macOS menu adjustments
   if (process.platform === 'darwin') {
     template.unshift({
-      label: app.getName(),
+      label: app.name,
       submenu: [
         { role: 'about' },
         { type: 'separator' },
@@ -259,15 +236,6 @@ const createMenu = () => {
         { role: 'quit' }
       ]
     });
-
-    // Window menu
-    template.push({
-      label: 'Window',
-      submenu: [
-        { role: 'minimize' },
-        { role: 'close' }
-      ]
-    });
   }
 
   const menu = Menu.buildFromTemplate(template);
@@ -276,69 +244,105 @@ const createMenu = () => {
 
 // Initialize auto-updater IPC handlers
 const initializeAutoUpdaterHandlers = () => {
-  // Check for updates
-  ipcMain.handle('check-for-updates', async () => {
-    return await autoUpdater.checkForUpdates(true);
+  ipcMain.on('updater:check', () => {
+    autoUpdater.checkForUpdates(true);
   });
 
-  // Download update
-  ipcMain.handle('download-update', async () => {
-    return await autoUpdater.downloadAndInstall();
+  ipcMain.on('updater:download', () => {
+    autoUpdater.downloadUpdate();
   });
 
-  // Install update
-  ipcMain.handle('install-update', () => {
+  ipcMain.on('updater:install', () => {
     autoUpdater.quitAndInstall();
   });
-
-  // Get update status
-  ipcMain.handle('get-update-status', () => {
-    return autoUpdater.getStatus();
-  });
-
-  // Set auto-update enabled
-  ipcMain.handle('set-auto-update-enabled', (event, enabled) => {
-    autoUpdater.setAutoUpdateEnabled(enabled);
-  });
-
-  // Get auto-update enabled
-  ipcMain.handle('get-auto-update-enabled', () => {
-    return autoUpdater.isAutoUpdateEnabled();
-  });
 };
 
-// Clean up resources before quitting
+initializeAutoUpdaterHandlers();
+
+// Permissions IPC (macOS microphone preflight)
+ipcMain.handle('permissions:checkMicrophone', async () => {
+  try {
+    if (process.platform === 'darwin' && systemPreferences && typeof systemPreferences.getMediaAccessStatus === 'function') {
+      const status = systemPreferences.getMediaAccessStatus('microphone');
+      return { platform: 'darwin', status };
+    }
+    // For non-macOS, rely on getUserMedia/session handler; assume granted
+    return { platform: process.platform, status: 'granted' };
+  } catch (error) {
+    logger.error('permissions:checkMicrophone failed', error);
+    return { status: 'unknown', error: error.message };
+  }
+});
+
+ipcMain.handle('permissions:requestMicrophone', async () => {
+  try {
+    if (process.platform === 'darwin' && systemPreferences && typeof systemPreferences.askForMediaAccess === 'function') {
+      const granted = await systemPreferences.askForMediaAccess('microphone');
+      return { platform: 'darwin', granted };
+    }
+    return { platform: process.platform, granted: true };
+  } catch (error) {
+    logger.error('permissions:requestMicrophone failed', error);
+    return { granted: false, error: error.message };
+  }
+});
+
+ipcMain.handle('permissions:openSystemSettings', async () => {
+  try {
+    if (process.platform === 'darwin') {
+      await shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone');
+      return { success: true };
+    }
+    return { success: false, error: 'Not supported on this platform' };
+  } catch (error) {
+    logger.error('permissions:openSystemSettings failed', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Setup automation IPC handlers
+ipcMain.handle('setup:performOneClick', async () => {
+  try {
+    const result = await SetupAutomation.runCompleteSetup();
+    return result;
+  } catch (error) {
+    logger.error('Failed to perform one-click setup', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('setup:getStatus', async () => {
+  try {
+    const status = await SetupAutomation.getSetupStatus();
+    return status;
+  } catch (error) {
+    logger.error('Failed to get setup status', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('setup:openTroubleshootingGuide', async () => {
+  try {
+    const url = await SetupAutomation.openTroubleshootingGuide();
+    return url;
+  } catch (error) {
+    logger.error('Failed to open troubleshooting guide', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Handle app shutdown
 app.on('will-quit', () => {
-  logger.info('Cleaning up resources before quit');
   cleanupAudioHandlers();
+  cleanupSettingsHandlers();
+  cleanupTTSHandlers();
 });
 
-// Log application events
-app.on('will-quit', () => {
-  logger.info('Application is quitting');
-});
-
-// Initialize audio handlers
-let audioHandlersInitialized = false;
-
-// Handle audio recording and device management via IPC
-const initializeAppHandlers = () => {
-  if (audioHandlersInitialized) return;
-
-  // Initialize audio handlers
-  initializeAudioHandlers();
-  audioHandlersInitialized = true;
-
-  logger.info('App IPC handlers initialized');
-};
-
-// Handle errors
+// Error handling
 process.on('uncaughtException', (error) => {
-  logger.error('Uncaught Exception:', error);
-  dialog.showErrorBox('An error occurred', error.message || 'Unknown error');
+  logger.error('Uncaught exception:', error);
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-  logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
-  dialog.showErrorBox('An error occurred', 'An unhandled promise rejection occurred');
+  logger.error('Unhandled rejection:', reason);
 });

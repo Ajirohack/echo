@@ -1,3 +1,6 @@
+const DeepLTranslator = require('./deepl');
+const logger = require('../../utils/logger');
+
 /**
  * Translation service for handling text translations between languages
  */
@@ -13,6 +16,14 @@ class TranslationService {
     this.apiKey = options.apiKey;
     this.defaultSourceLanguage = options.defaultSourceLanguage || 'en';
     this.defaultTargetLanguage = options.defaultTargetLanguage || 'es';
+
+    // Initialize DeepL translator if API key is provided
+    if (this.apiKey) {
+      this.deepLTranslator = new DeepLTranslator(this.apiKey);
+      this.deepLTranslator.initialize().catch((error) => {
+        logger.error('Failed to initialize DeepL translator:', error);
+      });
+    }
   }
 
   /**
@@ -24,51 +35,28 @@ class TranslationService {
    */
   async translate(text, sourceLang, targetLang) {
     if (!text) return '';
-    
+
     const source = sourceLang || this.defaultSourceLanguage;
     const target = targetLang || this.defaultTargetLanguage;
-    
+
     try {
-      // In a real implementation, this would call an actual translation API
-      // For now, we'll just return a mock translation
-      return await this.mockTranslate(text, source, target);
+      // Use DeepL translator if available
+      if (this.deepLTranslator) {
+        const result = await this.deepLTranslator.translate(text, {
+          from: source === 'auto' ? 'auto' : source,
+          to: target,
+        });
+
+        logger.info(`Translation completed: ${source} -> ${target}`);
+        return result.translatedText;
+      }
+
+      // Fallback error if no translator is configured
+      throw new Error('No translation service configured. Please provide a valid API key.');
     } catch (error) {
-      console.error('Translation failed:', error);
+      logger.error('Translation failed:', error);
       throw new Error(`Translation failed: ${error.message}`);
     }
-  }
-
-  /**
-   * Mock translation function for testing
-   * @private
-   */
-  async mockTranslate(text, sourceLang, targetLang) {
-    // Simple mock translations for common phrases
-    const mockTranslations = {
-      'en': {
-        'es': {
-          'hello': 'hola',
-          'goodbye': 'adiós',
-          'how are you': '¿cómo estás?',
-          'thank you': 'gracias',
-        },
-        'fr': {
-          'hello': 'bonjour',
-          'goodbye': 'au revoir',
-          'how are you': 'comment ça va?',
-          'thank you': 'merci',
-        },
-      },
-    };
-
-    const translation = mockTranslations[sourceLang]?.[targetLang]?.[text.toLowerCase()];
-    
-    if (translation) {
-      return translation;
-    }
-    
-    // Fallback: return the original text with language codes
-    return `[${sourceLang}->${targetLang}] ${text}`;
   }
 
   /**
@@ -110,7 +98,7 @@ class TranslationService {
     let bestMatch = { language: 'en', score: 0 };
 
     for (const [lang, commonWords] of Object.entries(languageScores)) {
-      const score = words.filter(word => commonWords.includes(word)).length;
+      const score = words.filter((word) => commonWords.includes(word)).length;
       if (score > bestMatch.score) {
         bestMatch = { language: lang, score };
       }

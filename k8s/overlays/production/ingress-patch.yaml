@@ -1,0 +1,241 @@
+# Production-specific ingress patches
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: echo-ingress
+  annotations:
+    # SSL and TLS configuration
+    cert-manager.io/cluster-issuer: 'letsencrypt-prod'
+    nginx.ingress.kubernetes.io/ssl-redirect: 'true'
+    nginx.ingress.kubernetes.io/force-ssl-redirect: 'true'
+    nginx.ingress.kubernetes.io/ssl-protocols: 'TLSv1.2 TLSv1.3'
+    nginx.ingress.kubernetes.io/ssl-ciphers: 'ECDHE-RSA-AES128-GCM-SHA256,ECDHE-RSA-AES256-GCM-SHA384,ECDHE-RSA-AES128-SHA256,ECDHE-RSA-AES256-SHA384'
+
+    # Security headers
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
+      add_header X-Content-Type-Options "nosniff" always;
+      add_header X-Frame-Options "SAMEORIGIN" always;
+      add_header X-XSS-Protection "1; mode=block" always;
+      add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+      add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' wss: https:; media-src 'self'; object-src 'none'; frame-ancestors 'self';" always;
+
+    # Rate limiting
+    nginx.ingress.kubernetes.io/rate-limit: '100'
+    nginx.ingress.kubernetes.io/rate-limit-window: '1m'
+    nginx.ingress.kubernetes.io/rate-limit-connections: '10'
+
+    # Performance optimizations
+    nginx.ingress.kubernetes.io/proxy-body-size: '10m'
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: '60'
+    nginx.ingress.kubernetes.io/proxy-send-timeout: '60'
+    nginx.ingress.kubernetes.io/proxy-read-timeout: '60'
+    nginx.ingress.kubernetes.io/proxy-buffering: 'on'
+    nginx.ingress.kubernetes.io/proxy-buffer-size: '8k'
+
+    # Compression
+    nginx.ingress.kubernetes.io/enable-brotli: 'true'
+    nginx.ingress.kubernetes.io/brotli-level: '6'
+    nginx.ingress.kubernetes.io/brotli-types: 'text/xml image/svg+xml application/x-font-ttf image/vnd.microsoft.icon application/x-font-opentype application/json font/eot application/vnd.ms-fontobject application/javascript font/otf application/xml application/xhtml+xml text/javascript application/x-javascript text/plain application/x-font-truetype application/xml+rss image/x-icon font/opentype text/css image/x-win-bitmap'
+
+    # WebSocket support
+    nginx.ingress.kubernetes.io/proxy-set-headers: 'echo-prod/websocket-headers'
+
+    # Custom error pages
+    nginx.ingress.kubernetes.io/custom-http-errors: '404,500,502,503,504'
+    nginx.ingress.kubernetes.io/default-backend: 'echo-prod/echo-error-pages'
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - echo.yourdomain.com
+        - api.echo.yourdomain.com
+        - ws.echo.yourdomain.com
+        - admin.echo.yourdomain.com
+      secretName: echo-tls-prod
+  rules:
+    - host: echo.yourdomain.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: echo-nginx-service
+                port:
+                  number: 80
+    - host: api.echo.yourdomain.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: echo-app-service
+                port:
+                  number: 8080
+    - host: ws.echo.yourdomain.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: echo-app-service
+                port:
+                  number: 8080
+    - host: admin.echo.yourdomain.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: echo-nginx-service
+                port:
+                  number: 80
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: echo-monitoring-ingress
+  annotations:
+    # SSL configuration
+    cert-manager.io/cluster-issuer: 'letsencrypt-prod'
+    nginx.ingress.kubernetes.io/ssl-redirect: 'true'
+    nginx.ingress.kubernetes.io/force-ssl-redirect: 'true'
+
+    # Authentication
+    nginx.ingress.kubernetes.io/auth-type: 'basic'
+    nginx.ingress.kubernetes.io/auth-secret: 'echo-monitoring-auth'
+    nginx.ingress.kubernetes.io/auth-realm: 'Echo Monitoring - Authentication Required'
+
+    # IP whitelisting (adjust as needed)
+    nginx.ingress.kubernetes.io/whitelist-source-range: '10.0.0.0/8,172.16.0.0/12,192.168.0.0/16'
+
+    # Security headers
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
+      add_header X-Content-Type-Options "nosniff" always;
+      add_header X-Frame-Options "SAMEORIGIN" always;
+      add_header X-XSS-Protection "1; mode=block" always;
+
+    # Rate limiting for monitoring endpoints
+    nginx.ingress.kubernetes.io/rate-limit: '50'
+    nginx.ingress.kubernetes.io/rate-limit-window: '1m'
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - grafana.echo.yourdomain.com
+        - prometheus.echo.yourdomain.com
+      secretName: echo-monitoring-tls-prod
+  rules:
+    - host: grafana.echo.yourdomain.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: echo-grafana-service
+                port:
+                  number: 3000
+    - host: prometheus.echo.yourdomain.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: echo-prometheus-service
+                port:
+                  number: 9090
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: websocket-headers
+data:
+  Upgrade: '$http_upgrade'
+  Connection: '$connection_upgrade'
+  X-Real-IP: '$remote_addr'
+  X-Forwarded-For: '$proxy_add_x_forwarded_for'
+  X-Forwarded-Proto: '$scheme'
+  Host: '$host'
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-error-pages
+data:
+  404.html: |
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Page Not Found</title>
+        <style>
+            body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+            h1 { color: #333; }
+        </style>
+    </head>
+    <body>
+        <h1>404 - Page Not Found</h1>
+        <p>The requested page could not be found.</p>
+        <a href="/">Return to Home</a>
+    </body>
+    </html>
+
+  500.html: |
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Internal Server Error</title>
+        <style>
+            body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+            h1 { color: #d32f2f; }
+        </style>
+    </head>
+    <body>
+        <h1>500 - Internal Server Error</h1>
+        <p>Something went wrong on our end. Please try again later.</p>
+        <a href="/">Return to Home</a>
+    </body>
+    </html>
+
+  502.html: |
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Bad Gateway</title>
+        <style>
+            body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+            h1 { color: #ff9800; }
+        </style>
+    </head>
+    <body>
+        <h1>502 - Bad Gateway</h1>
+        <p>The server is temporarily unavailable. Please try again later.</p>
+        <a href="/">Return to Home</a>
+    </body>
+    </html>
+
+  503.html: |
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Service Unavailable</title>
+        <style>
+            body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+            h1 { color: #ff9800; }
+        </style>
+    </head>
+    <body>
+        <h1>503 - Service Unavailable</h1>
+        <p>The service is temporarily unavailable. Please try again later.</p>
+        <a href="/">Return to Home</a>
+    </body>
+    </html>

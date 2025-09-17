@@ -220,7 +220,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ steps.get_version.outputs.VERSION }}
-          release_name: Universal Translator ${{ steps.get_version.outputs.VERSION }}
+          release_name: echo ${{ steps.get_version.outputs.VERSION }}
           body: |
             ## What's New in ${{ steps.get_version.outputs.VERSION }}
 
@@ -240,7 +240,7 @@ jobs:
 
             **macOS:**
             - Download and open `Universal-Translator.dmg`
-            - Drag Universal Translator to Applications
+            - Drag echo to Applications
             - BlackHole audio driver will be installed on first run
 
             **Linux:**
@@ -249,7 +249,7 @@ jobs:
             - PulseAudio virtual sink will be configured automatically
 
             ### Setup
-            1. Run Universal Translator
+            1. Run echo
             2. Follow the setup wizard to configure API keys
             3. Test your microphone and audio devices
             4. Start translating!
@@ -331,7 +331,7 @@ jobs:
           if [ -n "$DISCORD_WEBHOOK" ]; then
             curl -H "Content-Type: application/json" \
                  -X POST \
-                 -d "{\"content\":\"🎉 **Universal Translator ${{ steps.get_version.outputs.VERSION }}** has been released!\n\n📥 **Download:** https://github.com/your-repo/universal-translator/releases/tag/${{ steps.get_version.outputs.VERSION }}\n📖 **Changelog:** https://github.com/your-repo/universal-translator/releases/tag/${{ steps.get_version.outputs.VERSION }}\"}" \
+                 -d "{\"content\":\"🎉 **echo ${{ steps.get_version.outputs.VERSION }}** has been released!\n\n📥 **Download:** https://github.com/whytehoux/echo/releases/tag/${{ steps.get_version.outputs.VERSION }}\n\n🚀 **Features:**\n- Real-time AI-powered translation\n- 100+ language support\n- Cross-platform compatibility\n- Advanced audio processing\n\n💬 **Support:** Join our Discord community for help and updates!\n\nBuilt with ❤️ by WhyteHoux.ai\"}" \
                  $DISCORD_WEBHOOK
           fi
 

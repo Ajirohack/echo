@@ -1,218 +1,371 @@
-name: Translation App CI
+name: Continuous Integration
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, 'feature/*', 'bugfix/*', 'hotfix/*']
   pull_request:
     branches: [main, develop]
+  schedule:
+    # Run tests daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+env:
+  NODE_VERSION: '18'
+  PYTHON_VERSION: '3.11'
+  CACHE_VERSION: v1
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
+  # Detect changes to optimize CI runs
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.changes.outputs.backend }}
+      frontend: ${{ steps.changes.outputs.frontend }}
+      mobile: ${{ steps.changes.outputs.mobile }}
+      docker: ${{ steps.changes.outputs.docker }}
+      k8s: ${{ steps.changes.outputs.k8s }}
+      docs: ${{ steps.changes.outputs.docs }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for changes
+        uses: dorny/paths-filter@v2
+        id: changes
+        with:
+          filters: |
+            backend:
+              - 'src/backend/**'
+              - 'src/shared/**'
+              - 'package.json'
+              - 'package-lock.json'
+              - 'requirements.txt'
+              - '.env.example'
+            frontend:
+              - 'src/frontend/**'
+              - 'src/shared/**'
+              - 'web/**'
+              - 'package.json'
+              - 'package-lock.json'
+            mobile:
+              - 'mobile/**'
+              - 'src/shared/**'
+            docker:
+              - 'Dockerfile*'
+              - 'docker-compose*.yml'
+              - '.dockerignore'
+            k8s:
+              - 'k8s/**'
+            docs:
+              - '*.md'
+              - 'docs/**'
+
+  # Code quality checks
   lint:
-    name: Lint
+    name: Lint & Format Check
     runs-on: ubuntu-latest
-
+    needs: changes
+    if: needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true'
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: "18"
-          cache: "npm"
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Run linting
-        run: npm run test:lint
+      - name: Run ESLint
+        run: npm run lint
 
-  unit-tests:
-    name: Unit Tests
+      - name: Run Prettier check
+        run: npm run format:check
+
+      - name: Check TypeScript
+        run: npm run type-check
+
+  # Security and dependency checks
+  security:
+    name: Security Audit
     runs-on: ubuntu-latest
-
+    needs: changes
+    if: needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true'
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: "18"
-          cache: "npm"
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run unit tests
-        run: npm run test:unit
-
-      - name: Upload test results
-        uses: actions/upload-artifact@v3
-        if: always()
-        with:
-          name: unit-test-results
-          path: ./test-reports/unit
-
-      - name: Upload coverage results
-        uses: actions/upload-artifact@v3
-        if: success()
-        with:
-          name: unit-coverage
-          path: ./coverage
-
-  integration-tests:
-    name: Integration Tests
-    runs-on: ubuntu-latest
-    needs: unit-tests
-
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: "18"
-          cache: "npm"
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run integration tests
-        run: npm run test:integration
-
-      - name: Upload test results
-        uses: actions/upload-artifact@v3
-        if: always()
-        with:
-          name: integration-test-results
-          path: ./test-reports/integration
-
-  performance-tests:
-    name: Performance Tests
-    runs-on: ubuntu-latest
-    needs: integration-tests
-
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: "18"
-          cache: "npm"
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run performance tests
-        run: npm run test:performance
-
-      - name: Upload test results
-        uses: actions/upload-artifact@v3
-        if: always()
-        with:
-          name: performance-test-results
-          path: ./test-reports/performance
-
-  build:
-    name: Build
-    runs-on: ubuntu-latest
-    needs: [unit-tests, integration-tests]
-
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: "18"
-          cache: "npm"
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build application
-        run: npm run build
-
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: build-artifacts
-          path: ./dist
-
-  security-scan:
-    name: Security Scan
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: "18"
-          cache: "npm"
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
 
       - name: Run npm audit
-        run: npm audit --production
+        run: npm audit --audit-level=moderate
 
-      - name: Run OWASP Dependency-Check
-        uses: dependency-check/Dependency-Check_Action@main
+      - name: Run Snyk security scan
+        uses: snyk/actions/node@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
-          project: "Translation App"
-          path: "."
-          format: "HTML"
-          out: "security-reports"
+          args: --severity-threshold=high
 
-      - name: Upload security scan results
-        uses: actions/upload-artifact@v3
-        if: always()
-        with:
-          name: security-scan-results
-          path: ./security-reports
-
-  # This job runs on successful completion of all tests
-  report:
-    name: Generate Report
+  # Backend tests
+  test-backend:
+    name: Backend Tests
     runs-on: ubuntu-latest
-    if: always()
-    needs:
-      [
-        lint,
-        unit-tests,
-        integration-tests,
-        performance-tests,
-        build,
-        security-scan,
-      ]
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    strategy:
+      matrix:
+        test-suite: [unit, integration, api]
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_USER: test_user
+          POSTGRES_DB: echo_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Download all artifacts
-        uses: actions/download-artifact@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          path: artifacts
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
+      - name: Setup Python
+        uses: actions/setup-python@v4
         with:
-          node-version: "18"
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
 
-      - name: Install report generation dependencies
-        run: npm install -g junit-merge mochawesome-merge mochawesome-report-generator
+      - name: Install Node.js dependencies
+        run: npm ci
 
-      - name: Merge test reports
+      - name: Install Python dependencies
         run: |
-          mkdir -p test-reports
-          junit-merge -d artifacts -o test-reports/junit-combined.xml
-          mochawesome-merge artifacts/**/mochawesome.json > test-reports/mochawesome-combined.json
-          marge test-reports/mochawesome-combined.json -o test-reports
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          fi
 
-      - name: Upload combined reports
+      - name: Setup test environment
+        run: |
+          cp .env.example .env.test
+          cat >> .env.test << EOF
+          NODE_ENV=test
+          DATABASE_URL=postgresql://test_user:test_password@localhost:5432/echo_test
+          REDIS_URL=redis://localhost:6379
+          JWT_SECRET=test_jwt_secret_key_for_testing_only
+          ENCRYPTION_KEY=test_encryption_key_32_chars_long
+          EOF
+
+      - name: Wait for services
+        run: |
+          timeout 60 bash -c 'until nc -z localhost 5432; do sleep 1; done'
+          timeout 60 bash -c 'until nc -z localhost 6379; do sleep 1; done'
+
+      - name: Run database migrations
+        run: npm run migrate:test
+
+      - name: Run unit tests
+        if: matrix.test-suite == 'unit'
+        run: npm run test:backend:unit -- --coverage --maxWorkers=2
+
+      - name: Run integration tests
+        if: matrix.test-suite == 'integration'
+        run: npm run test:backend:integration -- --maxWorkers=2
+
+      - name: Run API tests
+        if: matrix.test-suite == 'api'
+        run: npm run test:api -- --maxWorkers=2
+
+      - name: Upload coverage reports
+        if: matrix.test-suite == 'unit'
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage/backend/lcov.info
+          flags: backend
+          name: backend-coverage
+
+  # Frontend tests
+  test-frontend:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    strategy:
+      matrix:
+        test-suite: [unit, component, e2e]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build frontend
+        if: matrix.test-suite == 'e2e'
+        run: npm run build:frontend
+
+      - name: Run unit tests
+        if: matrix.test-suite == 'unit'
+        run: npm run test:frontend:unit -- --coverage --watchAll=false
+
+      - name: Run component tests
+        if: matrix.test-suite == 'component'
+        run: npm run test:frontend:component -- --watchAll=false
+
+      - name: Install Playwright browsers
+        if: matrix.test-suite == 'e2e'
+        run: npx playwright install --with-deps
+
+      - name: Run E2E tests
+        if: matrix.test-suite == 'e2e'
+        run: npm run test:e2e
+
+      - name: Upload E2E test results
+        if: matrix.test-suite == 'e2e' && always()
         uses: actions/upload-artifact@v3
         with:
-          name: combined-test-reports
-          path: ./test-reports
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 30
+
+      - name: Upload coverage reports
+        if: matrix.test-suite == 'unit'
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage/frontend/lcov.info
+          flags: frontend
+          name: frontend-coverage
+
+  # Docker build test
+  docker-build:
+    name: Docker Build Test
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.docker == 'true' || needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: echo:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Test Docker image
+        run: |
+          docker run --rm -d --name echo-test -p 8080:8080 echo:test
+          sleep 10
+          curl -f http://localhost:8080/health || exit 1
+          docker stop echo-test
+
+  # Kubernetes manifest validation
+  k8s-validate:
+    name: Kubernetes Validation
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.k8s == 'true'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Kustomize
+        run: |
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          sudo mv kustomize /usr/local/bin/
+
+      - name: Validate Kubernetes manifests
+        run: |
+          # Validate base manifests
+          kubectl --dry-run=client apply -f k8s/base/
+
+          # Validate overlays
+          for env in development staging production; do
+            echo "Validating $env environment..."
+            kustomize build k8s/overlays/$env | kubectl --dry-run=client apply -f -
+          done
+
+  # Aggregate results
+  ci-success:
+    name: CI Success
+    runs-on: ubuntu-latest
+    needs: [lint, security, test-backend, test-frontend, docker-build, k8s-validate]
+    if: always()
+    steps:
+      - name: Check CI status
+        run: |
+          if [[ "${{ needs.lint.result }}" == "failure" || \
+                "${{ needs.security.result }}" == "failure" || \
+                "${{ needs.test-backend.result }}" == "failure" || \
+                "${{ needs.test-frontend.result }}" == "failure" || \
+                "${{ needs.docker-build.result }}" == "failure" || \
+                "${{ needs.k8s-validate.result }}" == "failure" ]]; then
+            echo "❌ CI pipeline failed"
+            exit 1
+          else
+            echo "✅ CI pipeline passed"
+          fi
+
+      - name: Update commit status
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: context.sha,
+              state: 'success',
+              description: 'All CI checks passed',
+              context: 'ci/echo'
+            });

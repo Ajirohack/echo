@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Universal Translator Release Script
-# Automates version bumping, tagging, and release preparation
+# echo Release Script
+# Handles the release process for echo
 
 set -e
 
@@ -31,7 +31,7 @@ print_error() {
 
 # Function to show usage
 show_usage() {
-    echo "Universal Translator Release Script"
+    echo "echo Release Script"
     echo ""
     echo "Usage: $0 [version_type] [options]"
     echo ""
@@ -363,7 +363,7 @@ show_summary() {
     echo "3. Update documentation if needed"
     echo "4. Announce the release"
     echo ""
-    echo "GitHub Release: https://github.com/your-repo/universal-translator/releases/tag/v$new_version"
+    echo "GitHub Release: https://github.com/your-repo/echo/releases/tag/v$new_version"
     echo ""
 }
 
@@ -393,7 +393,7 @@ main() {
     # Confirm release
     if [ "$DRY_RUN" != "true" ]; then
         echo ""
-        echo -e "${YELLOW}About to release Universal Translator v$new_version${NC}"
+        echo -e "${YELLOW}About to release echo v$new_version${NC}"
         echo "This will:"
         echo "- Update package.json version"
         echo "- Run tests (unless --skip-tests)"

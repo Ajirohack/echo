@@ -1,6 +1,6 @@
-# Contributing to Universal Translator
+# Contributing to echo
 
-We welcome contributions to Universal Translator! This document provides guidelines for contributing to the project.
+We welcome contributions to echo! This document provides guidelines for contributing to the project.
 
 ## 🚀 Quick Start
 
@@ -303,7 +303,7 @@ describe('ComponentName', () => {
 
 Instead:
 
-1. Email security concerns to: `security@universaltranslator.app`
+1. Email security concerns to: `security@whytehoux.ai`
 2. Include detailed information about the vulnerability
 3. Allow reasonable time for response before disclosure
 
@@ -341,7 +341,7 @@ We welcome translations and localization improvements:
 
 - **General Questions**: Create a GitHub Discussion
 - **Bug Reports**: Create a GitHub Issue
-- **Security Issues**: Email `security@universaltranslator.app`
+- **Security Issues**: Email `security@whytehoux.ai`
 - **Feature Requests**: Create a GitHub Issue
 
 ## 🏆 Recognition
@@ -355,11 +355,11 @@ Contributors are recognized in:
 
 ## 📄 License
 
-By contributing to Universal Translator, you agree that your contributions will be licensed under the same license as the project (MIT License).
+By contributing to echo, you agree that your contributions will be licensed under the same license as the project (MIT License).
 
 ## 🙏 Thank You
 
-Thank you for considering contributing to Universal Translator! Your contributions help make real-time translation accessible to everyone.
+Thank you for considering contributing to echo! Your contributions help make real-time translation accessible to everyone.
 
 ---
 

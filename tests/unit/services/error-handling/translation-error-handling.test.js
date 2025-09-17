@@ -3,7 +3,7 @@
  */
 
 const { expect } = require('chai');
-const sinon = require('sinon');
+// Sinon functionality replaced with Jest mocks
 const TranslationManager = require('../../../../src/services/translation/translation-manager');
 const { createMockServices, createTestSandbox } = require('../../../utils/translation-test-utils');
 

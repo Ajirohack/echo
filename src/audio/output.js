@@ -41,11 +41,16 @@ class AudioOutput extends EventEmitter {
     return new Promise((resolve, reject) => {
       try {
         const args = [
-          '-f', 's16le',
-          '-ar', this.sampleRate,
-          '-ac', this.channels,
-          '-i', 'pipe:0',
-          '-f', this.getOutputFormat(),
+          '-f',
+          's16le',
+          '-ar',
+          this.sampleRate,
+          '-ac',
+          this.channels,
+          '-i',
+          'pipe:0',
+          '-f',
+          this.getOutputFormat(),
         ];
 
         // Add volume adjustment if needed
@@ -72,7 +77,7 @@ class AudioOutput extends EventEmitter {
         }
 
         this.outputProcess = spawn('ffplay', args, { stdio: ['pipe', 'ignore', 'inherit'] });
-        
+
         this.outputProcess.on('error', (error) => {
           this.emit('error', new Error(`Audio playback error: ${error.message}`));
           this.isPlaying = false;
@@ -94,7 +99,6 @@ class AudioOutput extends EventEmitter {
         // Write audio data to the process
         this.outputProcess.stdin.write(audioData);
         this.outputProcess.stdin.end();
-        
       } catch (error) {
         this.isPlaying = false;
         this.emit('error', new Error(`Failed to start audio playback: ${error.message}`));
@@ -113,10 +117,10 @@ class AudioOutput extends EventEmitter {
    */
   async routeToVirtual(audioData, options = {}) {
     const { deviceId, volume = this.volume } = options;
-    
+
     // If no device ID is provided, use the default virtual device for the platform
     const targetDevice = deviceId || this.getDefaultVirtualDevice();
-    
+
     try {
       await this.play(audioData, { deviceId: targetDevice, volume });
       this.emit('routed', { device: targetDevice });
@@ -172,10 +176,10 @@ class AudioOutput extends EventEmitter {
           this.isPlaying = false;
           resolve();
         });
-        
+
         // Try to gracefully terminate first
         this.outputProcess.kill('SIGTERM');
-        
+
         // Force kill if it doesn't exit quickly
         setTimeout(() => {
           if (this.outputProcess) {
@@ -193,7 +197,7 @@ class AudioOutput extends EventEmitter {
    */
   setVolume(volume) {
     this.volume = Math.max(0, Math.min(100, volume));
-    
+
     // If we're currently playing, update the volume
     if (this.isPlaying && this.outputProcess && this.platform === 'win32') {
       // On Windows, we can use nircmd to adjust the volume
@@ -203,7 +207,7 @@ class AudioOutput extends EventEmitter {
         this.emit('error', new Error(`Failed to set volume: ${error.message}`));
       }
     }
-    
+
     this.emit('volumeChanged', this.volume);
   }
 

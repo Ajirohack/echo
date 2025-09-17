@@ -1,0 +1,143 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: echo-development
+
+# Reference to base configuration
+resources:
+  - ../../
+
+# Development-specific namespace
+namespace: echo-dev
+
+# Name suffix for development
+nameSuffix: -dev
+
+# Development-specific labels
+commonLabels:
+  environment: development
+  app.kubernetes.io/instance: echo-dev
+
+# Development-specific annotations
+commonAnnotations:
+  environment: development
+  config.kubernetes.io/origin: |
+    path: k8s/overlays/development/kustomization.yaml
+
+# Development images (often use latest or dev tags)
+images:
+  - name: echo-app
+    newTag: dev
+  - name: postgres
+    newTag: '15-alpine'
+  - name: redis
+    newTag: '7-alpine'
+  - name: elasticsearch
+    newTag: '8.11.0'
+  - name: nginx
+    newTag: '1.25-alpine'
+  - name: prometheus
+    newTag: 'v2.45.0'
+  - name: grafana
+    newTag: '10.2.0'
+
+# Development-specific ConfigMaps
+configMapGenerator:
+  - name: echo-dev-config
+    literals:
+      - NODE_ENV=development
+      - LOG_LEVEL=debug
+      - DEBUG_MODE=true
+      - ENABLE_CORS=true
+      - ENABLE_SWAGGER=true
+      - HOT_RELOAD=true
+      - METRICS_ENABLED=true
+    behavior: merge
+
+# Development-specific secrets
+secretGenerator:
+  - name: echo-dev-secrets
+    literals:
+      - JWT_SECRET=dev-jwt-secret-key
+      - ENCRYPTION_KEY=dev-encryption-key
+    type: Opaque
+    behavior: merge
+
+# Development-specific patches
+patchesStrategicMerge:
+  - deployment-patch.yaml
+  - service-patch.yaml
+
+# JSON patches for development
+patches:
+  # Reduce resource requirements for development
+  - target:
+      kind: Deployment
+      name: echo-app
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: "256Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: "100m"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "512Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: "500m"
+
+  # Enable debug mode for PostgreSQL
+  - target:
+      kind: Deployment
+      name: echo-postgres
+    patch: |
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: POSTGRES_LOG_STATEMENT
+          value: "all"
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: POSTGRES_LOG_MIN_DURATION_STATEMENT
+          value: "0"
+
+  # Reduce Elasticsearch memory for development
+  - target:
+      kind: Deployment
+      name: echo-elasticsearch
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/env/0/value
+        value: "-Xms512m -Xmx512m"
+
+  # Enable NodePort for easier local access
+  - target:
+      kind: Service
+      name: echo-nginx-service
+    patch: |
+      - op: replace
+        path: /spec/type
+        value: NodePort
+      - op: add
+        path: /spec/ports/0/nodePort
+        value: 30080
+
+# Replacements for development
+replacements:
+  - source:
+      kind: ConfigMap
+      name: echo-dev-config
+      fieldPath: data.NODE_ENV
+    targets:
+      - select:
+          kind: Deployment
+          name: echo-app
+        fieldPaths:
+          - spec.template.spec.containers.[name=echo-app].env.[name=NODE_ENV].value

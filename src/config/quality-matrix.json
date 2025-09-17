@@ -1,0 +1,12 @@
+{
+  "deepl": {
+    "en-es": 0.75962,
+    "nonexistent-pair": 0.7813
+  },
+  "google": {
+    "en-es": 0.7406499999999999
+  },
+  "nonexistent": {
+    "en-es": 0.7813
+  }
+}

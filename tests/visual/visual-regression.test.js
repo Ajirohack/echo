@@ -5,16 +5,15 @@
  * remains consistent across changes.
  */
 
-const { expect } = require('chai');
 const path = require('path');
 const fs = require('fs');
 const puppeteer = require('puppeteer');
 const pixelmatch = require('pixelmatch');
 const PNG = require('pngjs').PNG;
 
-describe('Visual Regression Tests', function () {
+describe('Visual Regression Tests', () => {
     // These tests can take longer
-    this.timeout(30000);
+    jest.setTimeout(30000);
 
     let browser;
     let page;
@@ -31,7 +30,7 @@ describe('Visual Regression Tests', function () {
         }
     });
 
-    before(async () => {
+    beforeAll(async () => {
         // Launch browser
         browser = await puppeteer.launch({
             headless: true, // Run headless for CI
@@ -48,7 +47,7 @@ describe('Visual Regression Tests', function () {
         });
     });
 
-    after(async () => {
+    afterAll(async () => {
         // Close browser
         if (browser) {
             await browser.close();
@@ -135,7 +134,7 @@ describe('Visual Regression Tests', function () {
 
             // Compare with baseline
             const match = await compareScreenshots('main-ui');
-            expect(match).to.be.true('UI does not match baseline');
+            expect(match).toBe(true); // UI does not match baseline
         });
 
         it('should match baseline for language selection dropdown', async () => {
@@ -150,7 +149,7 @@ describe('Visual Regression Tests', function () {
 
             // Compare with baseline
             const match = await compareScreenshots('language-dropdown');
-            expect(match).to.be.true('Language dropdown does not match baseline');
+            expect(match).toBe(true); // Language dropdown does not match baseline
         });
     });
 
@@ -177,7 +176,7 @@ describe('Visual Regression Tests', function () {
 
             // Compare with baseline
             const match = await compareScreenshots('translation-loading');
-            expect(match).to.be.true('Translation loading state does not match baseline');
+            expect(match).toBe(true); // Translation loading state does not match baseline
         });
 
         it('should match baseline for translation results', async () => {
@@ -198,7 +197,7 @@ describe('Visual Regression Tests', function () {
 
             // Compare with baseline
             const match = await compareScreenshots('translation-results');
-            expect(match).to.be.true('Translation results do not match baseline');
+            expect(match).toBe(true); // Translation results do not match baseline
         });
 
         it('should match baseline for error state', async () => {
@@ -216,7 +215,7 @@ describe('Visual Regression Tests', function () {
 
             // Compare with baseline
             const match = await compareScreenshots('translation-error');
-            expect(match).to.be.true('Error state does not match baseline');
+            expect(match).toBe(true); // Error state does not match baseline
         });
     });
 
@@ -247,7 +246,7 @@ describe('Visual Regression Tests', function () {
 
                 // Compare with baseline
                 const match = await compareScreenshots(`responsive-${viewport.name}`);
-                expect(match).to.be.true(`UI on ${viewport.name} does not match baseline`);
+                expect(match).toBe(true); // UI on viewport does not match baseline
             });
         }
     });
@@ -277,7 +276,7 @@ describe('Visual Regression Tests', function () {
 
                 // Compare with baseline
                 const match = await compareScreenshots(`theme-${theme}`);
-                expect(match).to.be.true(`${theme} theme does not match baseline`);
+                expect(match).toBe(true); // Theme does not match baseline
             });
         }
     });

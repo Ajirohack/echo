@@ -1,0 +1,407 @@
+{
+  "index_patterns": ["echo-logs-*"],
+  "template": {
+    "settings": {
+      "number_of_shards": 3,
+      "number_of_replicas": 1,
+      "index.refresh_interval": "5s",
+      "index.max_result_window": 50000,
+      "analysis": {
+        "analyzer": {
+          "echo_log_analyzer": {
+            "type": "custom",
+            "tokenizer": "standard",
+            "filter": ["lowercase", "stop", "snowball"]
+          },
+          "echo_path_analyzer": {
+            "type": "custom",
+            "tokenizer": "path_hierarchy",
+            "filter": ["lowercase"]
+          }
+        },
+        "tokenizer": {
+          "path_hierarchy": {
+            "type": "path_hierarchy",
+            "delimiter": "/"
+          }
+        }
+      }
+    },
+    "mappings": {
+      "properties": {
+        "@timestamp": {
+          "type": "date",
+          "format": "strict_date_optional_time||epoch_millis"
+        },
+        "timestamp": {
+          "type": "date",
+          "format": "strict_date_optional_time||epoch_millis"
+        },
+        "level": {
+          "type": "keyword",
+          "fields": {
+            "text": {
+              "type": "text",
+              "analyzer": "echo_log_analyzer"
+            }
+          }
+        },
+        "message": {
+          "type": "text",
+          "analyzer": "echo_log_analyzer",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            },
+            "raw": {
+              "type": "text",
+              "index": false
+            }
+          }
+        },
+        "service_name": {
+          "type": "keyword",
+          "fields": {
+            "text": {
+              "type": "text",
+              "analyzer": "echo_log_analyzer"
+            }
+          }
+        },
+        "environment": {
+          "type": "keyword"
+        },
+        "cluster_name": {
+          "type": "keyword"
+        },
+        "node_name": {
+          "type": "keyword"
+        },
+        "pod_name": {
+          "type": "keyword",
+          "fields": {
+            "text": {
+              "type": "text",
+              "analyzer": "echo_log_analyzer"
+            }
+          }
+        },
+        "container_name": {
+          "type": "keyword"
+        },
+        "log_source": {
+          "type": "keyword"
+        },
+        "log_type": {
+          "type": "keyword"
+        },
+        "severity": {
+          "type": "keyword"
+        },
+        "kubernetes": {
+          "properties": {
+            "namespace_name": {
+              "type": "keyword"
+            },
+            "pod_name": {
+              "type": "keyword"
+            },
+            "container_name": {
+              "type": "keyword"
+            },
+            "host": {
+              "type": "keyword"
+            },
+            "labels": {
+              "type": "object",
+              "dynamic": true,
+              "properties": {
+                "app": {
+                  "type": "keyword"
+                },
+                "version": {
+                  "type": "keyword"
+                },
+                "component": {
+                  "type": "keyword"
+                }
+              }
+            },
+            "annotations": {
+              "type": "object",
+              "dynamic": true
+            }
+          }
+        },
+        "request_id": {
+          "type": "keyword"
+        },
+        "trace_id": {
+          "type": "keyword"
+        },
+        "span_id": {
+          "type": "keyword"
+        },
+        "user_id": {
+          "type": "keyword"
+        },
+        "session_id": {
+          "type": "keyword"
+        },
+        "ip_address": {
+          "type": "ip"
+        },
+        "user_agent": {
+          "type": "text",
+          "analyzer": "echo_log_analyzer",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "http": {
+          "properties": {
+            "method": {
+              "type": "keyword"
+            },
+            "status_code": {
+              "type": "integer"
+            },
+            "url": {
+              "type": "text",
+              "analyzer": "echo_path_analyzer",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "path": {
+              "type": "text",
+              "analyzer": "echo_path_analyzer",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "response_time": {
+              "type": "float"
+            },
+            "request_size": {
+              "type": "long"
+            },
+            "response_size": {
+              "type": "long"
+            }
+          }
+        },
+        "webrtc": {
+          "properties": {
+            "event": {
+              "type": "keyword"
+            },
+            "connection_id": {
+              "type": "keyword"
+            },
+            "peer_id": {
+              "type": "keyword"
+            },
+            "ice_state": {
+              "type": "keyword"
+            },
+            "connection_state": {
+              "type": "keyword"
+            },
+            "signaling_state": {
+              "type": "keyword"
+            },
+            "bandwidth": {
+              "type": "float"
+            },
+            "latency": {
+              "type": "float"
+            },
+            "packet_loss": {
+              "type": "float"
+            },
+            "jitter": {
+              "type": "float"
+            }
+          }
+        },
+        "audio": {
+          "properties": {
+            "operation": {
+              "type": "keyword"
+            },
+            "quality": {
+              "type": "float"
+            },
+            "latency": {
+              "type": "float"
+            },
+            "sample_rate": {
+              "type": "integer"
+            },
+            "channels": {
+              "type": "integer"
+            },
+            "bit_rate": {
+              "type": "integer"
+            },
+            "codec": {
+              "type": "keyword"
+            },
+            "processing_time": {
+              "type": "float"
+            }
+          }
+        },
+        "performance": {
+          "properties": {
+            "operation": {
+              "type": "keyword"
+            },
+            "duration": {
+              "type": "float"
+            },
+            "cpu_usage": {
+              "type": "float"
+            },
+            "memory_usage": {
+              "type": "long"
+            },
+            "thread_count": {
+              "type": "integer"
+            }
+          }
+        },
+        "error": {
+          "properties": {
+            "type": {
+              "type": "keyword"
+            },
+            "code": {
+              "type": "keyword"
+            },
+            "stack_trace": {
+              "type": "text",
+              "analyzer": "echo_log_analyzer",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 1024
+                }
+              }
+            },
+            "file": {
+              "type": "text",
+              "analyzer": "echo_path_analyzer",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "line": {
+              "type": "integer"
+            },
+            "function": {
+              "type": "keyword"
+            }
+          }
+        },
+        "database": {
+          "properties": {
+            "query": {
+              "type": "text",
+              "analyzer": "echo_log_analyzer",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 512
+                }
+              }
+            },
+            "duration": {
+              "type": "float"
+            },
+            "rows_affected": {
+              "type": "integer"
+            },
+            "connection_pool": {
+              "type": "keyword"
+            }
+          }
+        },
+        "security": {
+          "properties": {
+            "event_type": {
+              "type": "keyword"
+            },
+            "action": {
+              "type": "keyword"
+            },
+            "resource": {
+              "type": "keyword"
+            },
+            "result": {
+              "type": "keyword"
+            },
+            "risk_score": {
+              "type": "float"
+            },
+            "threat_level": {
+              "type": "keyword"
+            }
+          }
+        },
+        "business": {
+          "properties": {
+            "metric_name": {
+              "type": "keyword"
+            },
+            "metric_value": {
+              "type": "float"
+            },
+            "metric_unit": {
+              "type": "keyword"
+            },
+            "conversion_funnel": {
+              "type": "keyword"
+            },
+            "user_journey_step": {
+              "type": "keyword"
+            }
+          }
+        },
+        "tags": {
+          "type": "keyword"
+        },
+        "labels": {
+          "type": "object",
+          "dynamic": true
+        },
+        "metadata": {
+          "type": "object",
+          "dynamic": true
+        }
+      }
+    }
+  },
+  "priority": 100,
+  "version": 1,
+  "_meta": {
+    "description": "Template for Echo application logs",
+    "created_by": "Echo DevOps Team",
+    "created_at": "2024-01-01",
+    "version": "1.0.0"
+  }
+}

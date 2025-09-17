@@ -1,0 +1,457 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: echo-ingress
+  namespace: echo
+  labels:
+    app: echo
+    component: ingress
+  annotations:
+    # Ingress class
+    kubernetes.io/ingress.class: 'nginx'
+
+    # SSL/TLS configuration
+    cert-manager.io/cluster-issuer: 'letsencrypt-prod'
+    nginx.ingress.kubernetes.io/ssl-redirect: 'true'
+    nginx.ingress.kubernetes.io/force-ssl-redirect: 'true'
+
+    # Rate limiting
+    nginx.ingress.kubernetes.io/rate-limit: '100'
+    nginx.ingress.kubernetes.io/rate-limit-window: '1m'
+    nginx.ingress.kubernetes.io/rate-limit-connections: '10'
+
+    # CORS configuration
+    nginx.ingress.kubernetes.io/enable-cors: 'true'
+    nginx.ingress.kubernetes.io/cors-allow-origin: 'https://echo.example.com,https://www.echo.example.com'
+    nginx.ingress.kubernetes.io/cors-allow-methods: 'GET, POST, PUT, DELETE, OPTIONS'
+    nginx.ingress.kubernetes.io/cors-allow-headers: 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization'
+    nginx.ingress.kubernetes.io/cors-expose-headers: 'Content-Length,Content-Range'
+    nginx.ingress.kubernetes.io/cors-allow-credentials: 'true'
+    nginx.ingress.kubernetes.io/cors-max-age: '86400'
+
+    # Security headers
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      more_set_headers "X-Frame-Options: SAMEORIGIN";
+      more_set_headers "X-XSS-Protection: 1; mode=block";
+      more_set_headers "X-Content-Type-Options: nosniff";
+      more_set_headers "Referrer-Policy: strict-origin-when-cross-origin";
+      more_set_headers "Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' wss: https:; media-src 'self'; object-src 'none'; frame-src 'none';";
+      more_set_headers "Strict-Transport-Security: max-age=31536000; includeSubDomains; preload";
+
+    # WebSocket support
+    nginx.ingress.kubernetes.io/proxy-read-timeout: '3600'
+    nginx.ingress.kubernetes.io/proxy-send-timeout: '3600'
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: '60'
+
+    # Body size limits
+    nginx.ingress.kubernetes.io/proxy-body-size: '100m'
+
+    # Buffering
+    nginx.ingress.kubernetes.io/proxy-buffering: 'on'
+    nginx.ingress.kubernetes.io/proxy-buffer-size: '4k'
+    nginx.ingress.kubernetes.io/proxy-buffers-number: '8'
+
+    # Custom error pages
+    nginx.ingress.kubernetes.io/custom-http-errors: '404,500,502,503,504'
+    nginx.ingress.kubernetes.io/default-backend: 'echo-nginx-service'
+spec:
+  tls:
+    - hosts:
+        - echo.example.com
+        - www.echo.example.com
+        - api.echo.example.com
+        - ws.echo.example.com
+      secretName: echo-tls-secret
+  rules:
+    # Main application domain
+    - host: echo.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: echo-nginx-service
+                port:
+                  number: 80
+
+    # WWW redirect
+    - host: www.echo.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: echo-nginx-service
+                port:
+                  number: 80
+
+    # API subdomain
+    - host: api.echo.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: echo-app-service
+                port:
+                  number: 3000
+
+    # WebSocket subdomain
+    - host: ws.echo.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: echo-app-service
+                port:
+                  number: 3001
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: echo-monitoring-ingress
+  namespace: echo
+  labels:
+    app: echo
+    component: monitoring-ingress
+  annotations:
+    kubernetes.io/ingress.class: 'nginx'
+    cert-manager.io/cluster-issuer: 'letsencrypt-prod'
+    nginx.ingress.kubernetes.io/ssl-redirect: 'true'
+    nginx.ingress.kubernetes.io/force-ssl-redirect: 'true'
+
+    # Basic authentication for monitoring endpoints
+    nginx.ingress.kubernetes.io/auth-type: 'basic'
+    nginx.ingress.kubernetes.io/auth-secret: 'echo-monitoring-auth'
+    nginx.ingress.kubernetes.io/auth-realm: 'Echo Monitoring - Authentication Required'
+
+    # IP whitelist for monitoring (adjust as needed)
+    nginx.ingress.kubernetes.io/whitelist-source-range: '10.0.0.0/8,172.16.0.0/12,192.168.0.0/16'
+
+    # Security headers
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      more_set_headers "X-Frame-Options: DENY";
+      more_set_headers "X-XSS-Protection: 1; mode=block";
+      more_set_headers "X-Content-Type-Options: nosniff";
+      more_set_headers "Referrer-Policy: no-referrer";
+      more_set_headers "Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self';";
+spec:
+  tls:
+    - hosts:
+        - monitoring.echo.example.com
+        - grafana.echo.example.com
+        - prometheus.echo.example.com
+      secretName: echo-monitoring-tls-secret
+  rules:
+    # Monitoring overview
+    - host: monitoring.echo.example.com
+      http:
+        paths:
+          - path: /grafana
+            pathType: Prefix
+            backend:
+              service:
+                name: echo-grafana-service
+                port:
+                  number: 3000
+          - path: /prometheus
+            pathType: Prefix
+            backend:
+              service:
+                name: echo-prometheus-service
+                port:
+                  number: 9090
+
+    # Grafana subdomain
+    - host: grafana.echo.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: echo-grafana-service
+                port:
+                  number: 3000
+
+    # Prometheus subdomain
+    - host: prometheus.echo.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: echo-prometheus-service
+                port:
+                  number: 9090
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: echo-monitoring-auth
+  namespace: echo
+  labels:
+    app: echo
+    component: monitoring-auth
+type: Opaque
+data:
+  # Default: admin:admin (base64 encoded)
+  # Generate with: htpasswd -nb admin admin | base64
+  auth: YWRtaW46JGFwcjEkSDY1dnVhNzAkLnRsT3E4S3VJcUg5RmxQdkVOWjFoLgoK
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: echo-ingress-network-policy
+  namespace: echo
+  labels:
+    app: echo
+    component: network-policy
+spec:
+  podSelector:
+    matchLabels:
+      app: echo-nginx
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow traffic from ingress controller
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 80
+        - protocol: TCP
+          port: 443
+
+    # Allow traffic from monitoring namespace
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: monitoring
+      ports:
+        - protocol: TCP
+          port: 9113
+
+  egress:
+    # Allow DNS resolution
+    - to: []
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+    # Allow traffic to Echo app
+    - to:
+        - podSelector:
+            matchLabels:
+              app: echo-app
+      ports:
+        - protocol: TCP
+          port: 3000
+        - protocol: TCP
+          port: 3001
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: echo-app-network-policy
+  namespace: echo
+  labels:
+    app: echo
+    component: network-policy
+spec:
+  podSelector:
+    matchLabels:
+      app: echo-app
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow traffic from Nginx
+    - from:
+        - podSelector:
+            matchLabels:
+              app: echo-nginx
+      ports:
+        - protocol: TCP
+          port: 3000
+        - protocol: TCP
+          port: 3001
+
+    # Allow traffic from monitoring
+    - from:
+        - podSelector:
+            matchLabels:
+              app: echo-prometheus
+      ports:
+        - protocol: TCP
+          port: 9090
+
+  egress:
+    # Allow DNS resolution
+    - to: []
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+    # Allow traffic to databases
+    - to:
+        - podSelector:
+            matchLabels:
+              app: echo-postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+
+    - to:
+        - podSelector:
+            matchLabels:
+              app: echo-redis
+      ports:
+        - protocol: TCP
+          port: 6379
+
+    - to:
+        - podSelector:
+            matchLabels:
+              app: echo-elasticsearch
+      ports:
+        - protocol: TCP
+          port: 9200
+
+    # Allow HTTPS outbound for external APIs
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 443
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: echo-database-network-policy
+  namespace: echo
+  labels:
+    app: echo
+    component: network-policy
+spec:
+  podSelector:
+    matchLabels:
+      component: database
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow traffic from Echo app
+    - from:
+        - podSelector:
+            matchLabels:
+              app: echo-app
+      ports:
+        - protocol: TCP
+          port: 5432
+        - protocol: TCP
+          port: 6379
+        - protocol: TCP
+          port: 9200
+
+    # Allow traffic from monitoring
+    - from:
+        - podSelector:
+            matchLabels:
+              app: echo-prometheus
+      ports:
+        - protocol: TCP
+          port: 9187 # postgres-exporter
+        - protocol: TCP
+          port: 9121 # redis-exporter
+        - protocol: TCP
+          port: 9114 # elasticsearch-exporter
+
+  egress:
+    # Allow DNS resolution
+    - to: []
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: echo-monitoring-network-policy
+  namespace: echo
+  labels:
+    app: echo
+    component: network-policy
+spec:
+  podSelector:
+    matchLabels:
+      component: monitoring
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow traffic from ingress controller
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 3000 # Grafana
+        - protocol: TCP
+          port: 9090 # Prometheus
+
+    # Allow Prometheus to scrape itself
+    - from:
+        - podSelector:
+            matchLabels:
+              app: echo-prometheus
+      ports:
+        - protocol: TCP
+          port: 9090
+
+  egress:
+    # Allow DNS resolution
+    - to: []
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+    # Allow Prometheus to scrape all services
+    - to:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 3000
+        - protocol: TCP
+          port: 9090
+        - protocol: TCP
+          port: 9113
+        - protocol: TCP
+          port: 9187
+        - protocol: TCP
+          port: 9121
+        - protocol: TCP
+          port: 9114
+
+    # Allow access to Kubernetes API
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 443

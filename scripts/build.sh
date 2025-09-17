@@ -1,11 +1,9 @@
 #!/bin/bash
 
-# Universal Translator Build Script
-# This script sets up the complete build environment and packages the application
+# echo Build Script
+# Builds echo for multiple platforms
 
-set -e
-
-echo "🚀 Universal Translator Build Script"
+echo "🚀 echo Build Script"
 echo "===================================="
 
 # Colors for output
@@ -88,7 +86,7 @@ generate_icons() {
         
         # Create a simple placeholder icon using ImageMagick if available
         if command -v convert &> /dev/null; then
-            convert -size 512x512 xc:lightblue -gravity center -pointsize 48 -annotate +0+0 "UT" assets/icons/icon.png
+            convert -size 512x512 xc:lightblue -gravity center -pointsize 48 -annotate +0+0 "echo" assets/icons/icon.png
             
             # Generate different sizes for different platforms
             convert assets/icons/icon.png -resize 256x256 assets/icons/icon.ico
@@ -193,7 +191,7 @@ create_installer_assets() {
     if [ ! -f "build/background.png" ]; then
         if command -v convert &> /dev/null; then
             convert -size 540x380 xc:white -gravity center -pointsize 24 \
-                -annotate +0-50 "Universal Translator" \
+                -annotate +0-50 "echo" \
                 -pointsize 16 -annotate +0+20 "Drag to Applications folder to install" \
                 build/background.png
         else
@@ -251,7 +249,7 @@ main() {
     local platform="${1:-all}"
     local skip_tests="${2:-false}"
     
-    echo "Building Universal Translator for platform: $platform"
+    echo "Building echo for platform: $platform"
     echo "Skip tests: $skip_tests"
     echo ""
     
@@ -308,7 +306,7 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         --help)
-            echo "Universal Translator Build Script"
+            echo "echo Build Script"
             echo ""
             echo "Usage: $0 [options]"
             echo ""
@@ -333,3 +331,5 @@ done
 
 # Run main function
 main "${PLATFORM:-all}" "${SKIP_TESTS:-false}"
+
+echo "echo Build Script"

@@ -41,40 +41,40 @@ class AudioUtils {
       // Use system_profiler to get audio devices on macOS
       const { stdout } = await execPromise('system_profiler SPAudioDataType -json');
       const audioData = JSON.parse(stdout);
-      
+
       const inputDevices = [];
       const outputDevices = [];
       const virtualDevices = [];
-      
+
       if (audioData.SPAudioDataType && Array.isArray(audioData.SPAudioDataType)) {
-        audioData.SPAudioDataType.forEach(device => {
-          const isInput = device._items.some(item => item.coreaudio_device_input);
-          const isOutput = device._items.some(item => item.coreaudio_device_output);
+        audioData.SPAudioDataType.forEach((device) => {
+          const isInput = device._items.some((item) => item.coreaudio_device_input);
+          const isOutput = device._items.some((item) => item.coreaudio_device_output);
           const isVirtual = device._name.match(/VB-Audio|BlackHole|SoundFlower|Loopback/i);
-          
+
           const deviceInfo = {
             id: device._name.replace(/\s+/g, '_').toLowerCase(),
             name: device._name,
             manufacturer: device.coreaudio_device_manufacturer || 'Unknown',
             sampleRate: device.coreaudio_sample_rate || 44100,
             isDefault: false, // Need additional logic to determine default
-            isVirtual
+            isVirtual,
           };
-          
+
           if (isInput) {
             inputDevices.push(deviceInfo);
           }
-          
+
           if (isOutput) {
             outputDevices.push(deviceInfo);
           }
-          
+
           if (isVirtual) {
             virtualDevices.push(deviceInfo);
           }
         });
       }
-      
+
       return { inputDevices, outputDevices, virtualDevices };
     } catch (error) {
       logger.error('Error getting macOS audio devices:', error);
@@ -125,35 +125,37 @@ class AudioUtils {
       # Convert to JSON and output
       $result | ConvertTo-Json -Depth 10
       `;
-      
+
       // Execute the PowerShell command
-      const { stdout } = await execPromise(`powershell -NoProfile -ExecutionPolicy Bypass -Command "${psCommand}"`);
+      const { stdout } = await execPromise(
+        `powershell -NoProfile -ExecutionPolicy Bypass -Command "${psCommand}"`
+      );
       const devices = JSON.parse(stdout || '{}');
-      
+
       // Convert to our standard format
       const formatDevices = (devs) => {
-        return (devs || []).map(dev => ({
+        return (devs || []).map((dev) => ({
           id: dev.id,
           name: dev.name,
           type: dev.type,
           isDefault: dev.isDefault,
           isVirtual: dev.isVirtual,
-          state: dev.state || 'active'
+          state: dev.state || 'active',
         }));
       };
-      
+
       return {
         inputDevices: formatDevices(devices.inputDevices),
         outputDevices: formatDevices(devices.outputDevices),
-        virtualDevices: formatDevices(devices.virtualDevices)
+        virtualDevices: formatDevices(devices.virtualDevices),
       };
     } catch (error) {
       logger.error('Error getting Windows audio devices:', error);
-      return { 
-        inputDevices: [], 
-        outputDevices: [], 
-        virtualDevices: [], 
-        error: error.message 
+      return {
+        inputDevices: [],
+        outputDevices: [],
+        virtualDevices: [],
+        error: error.message,
       };
     }
   }
@@ -164,38 +166,41 @@ class AudioUtils {
   async getLinuxAudioDevices() {
     try {
       // Use pacmd to get audio devices on Linux
-      const { stdout } = await execPromise('pacmd list-sources | grep -e "name:" -e "device.description"');
-      
+      const { stdout } = await execPromise(
+        'pacmd list-sources | grep -e "name:" -e "device.description"'
+      );
+
       const inputDevices = [];
       const outputDevices = [];
       const virtualDevices = [];
-      
+
       // Process the output to extract device information
       const lines = stdout.split('\n');
       let currentDevice = null;
-      
+
       for (const line of lines) {
         if (line.includes('name:')) {
           const nameMatch = line.match(/name: <([^>]+)>/);
           if (nameMatch && nameMatch[1]) {
             const isInput = !line.includes('.monitor');
-            const isVirtual = line.toLowerCase().includes('virtual') || 
-                            line.toLowerCase().includes('null') ||
-                            line.toLowerCase().includes('pulseaudio');
-            
+            const isVirtual =
+              line.toLowerCase().includes('virtual') ||
+              line.toLowerCase().includes('null') ||
+              line.toLowerCase().includes('pulseaudio');
+
             currentDevice = {
               id: nameMatch[1],
               name: '',
               isInput,
-              isVirtual
+              isVirtual,
             };
-            
+
             if (isInput) {
               inputDevices.push(currentDevice);
             } else {
               outputDevices.push(currentDevice);
             }
-            
+
             if (isVirtual) {
               virtualDevices.push(currentDevice);
             }
@@ -207,7 +212,7 @@ class AudioUtils {
           }
         }
       }
-      
+
       return { inputDevices, outputDevices, virtualDevices };
     } catch (error) {
       logger.error('Error getting Linux audio devices:', error);
@@ -223,10 +228,9 @@ class AudioUtils {
     try {
       const { inputDevices, outputDevices } = await this.getAudioDevices();
       const allDevices = [...inputDevices, ...outputDevices];
-      
-      return allDevices.some(device => 
-        device.name && 
-        device.name.toLowerCase().includes(deviceName.toLowerCase())
+
+      return allDevices.some(
+        (device) => device.name && device.name.toLowerCase().includes(deviceName.toLowerCase())
       );
     } catch (error) {
       logger.error(`Error checking for virtual device ${deviceName}:`, error);
@@ -247,10 +251,10 @@ class AudioUtils {
             '2. Open the downloaded .pkg file',
             '3. Follow the installation instructions',
             '4. Restart your computer',
-            '5. Open Audio MIDI Setup to verify installation'
-          ]
+            '5. Open Audio MIDI Setup to verify installation',
+          ],
         };
-      
+
       case 'win32': // Windows
         return {
           name: 'VB-Cable',
@@ -259,10 +263,10 @@ class AudioUtils {
             '2. Run the installer as administrator',
             '3. Follow the installation instructions',
             '4. Restart your computer',
-            '5. Set VB-Cable as your default playback device in Sound Settings'
-          ]
+            '5. Set VB-Cable as your default playback device in Sound Settings',
+          ],
         };
-      
+
       case 'linux':
         return {
           name: 'PulseAudio',
@@ -272,14 +276,14 @@ class AudioUtils {
             '   - Fedora: sudo dnf install pulseaudio',
             '2. Install module-null-sink:',
             '   - Run: pactl load-module module-null-sink sink_name=VirtualSink',
-            '3. Make it persistent by adding to /etc/pulse/default.pa'
-          ]
+            '3. Make it persistent by adding to /etc/pulse/default.pa',
+          ],
         };
-      
+
       default:
         return {
           name: 'Virtual Audio Device',
-          instructions: ['Unsupported platform for virtual audio devices']
+          instructions: ['Unsupported platform for virtual audio devices'],
         };
     }
   }

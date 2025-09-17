@@ -1,0 +1,205 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: echo-production
+
+# Reference to base configuration
+resources:
+  - ../../
+
+# Production-specific namespace
+namespace: echo-prod
+
+# Name suffix for production
+nameSuffix: -prod
+
+# Production-specific labels
+commonLabels:
+  environment: production
+  app.kubernetes.io/instance: echo-prod
+  tier: production
+
+# Production-specific annotations
+commonAnnotations:
+  environment: production
+  config.kubernetes.io/origin: |
+    path: k8s/overlays/production/kustomization.yaml
+  deployment.kubernetes.io/revision: '1'
+
+# Production images with specific versions
+images:
+  - name: echo-app
+    newTag: '1.0.0'
+  - name: postgres
+    newTag: '15.4-alpine'
+  - name: redis
+    newTag: '7.2-alpine'
+  - name: elasticsearch
+    newTag: '8.11.0'
+  - name: nginx
+    newTag: '1.25.3-alpine'
+  - name: prometheus
+    newTag: 'v2.45.0'
+  - name: grafana
+    newTag: '10.2.0'
+
+# Production-specific ConfigMaps
+configMapGenerator:
+  - name: echo-prod-config
+    literals:
+      - NODE_ENV=production
+      - LOG_LEVEL=info
+      - DEBUG_MODE=false
+      - ENABLE_CORS=false
+      - ENABLE_SWAGGER=false
+      - HOT_RELOAD=false
+      - METRICS_ENABLED=true
+      - HEALTH_CHECK_ENABLED=true
+      - RATE_LIMITING_ENABLED=true
+      - COMPRESSION_ENABLED=true
+      - CACHE_TTL=3600
+      - SESSION_TIMEOUT=1800
+      - MAX_UPLOAD_SIZE=10485760
+      - WORKER_PROCESSES=auto
+    behavior: merge
+
+# Production-specific secrets (should be created externally)
+secretGenerator: []
+
+# Production-specific patches
+patchesStrategicMerge:
+  - deployment-patch.yaml
+  - service-patch.yaml
+  - ingress-patch.yaml
+
+# JSON patches for production optimizations
+patches:
+  # Scale up replicas for high availability
+  - target:
+      kind: Deployment
+      name: echo-app
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 3
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: "1Gi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: "500m"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "2Gi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: "1000m"
+
+  # Scale Nginx for load balancing
+  - target:
+      kind: Deployment
+      name: echo-nginx
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 3
+
+  # Production PostgreSQL configuration
+  - target:
+      kind: Deployment
+      name: echo-postgres
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: "2Gi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: "1000m"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "4Gi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: "2000m"
+
+  # Production Redis configuration
+  - target:
+      kind: Deployment
+      name: echo-redis
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: "512Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: "250m"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "1Gi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: "500m"
+
+  # Production Elasticsearch configuration
+  - target:
+      kind: Deployment
+      name: echo-elasticsearch
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/env/0/value
+        value: "-Xms2g -Xmx2g"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: "3Gi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: "1000m"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "4Gi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: "2000m"
+
+  # Add production security context
+  - target:
+      kind: Deployment
+    patch: |
+      - op: add
+        path: /spec/template/spec/securityContext/runAsNonRoot
+        value: true
+      - op: add
+        path: /spec/template/spec/securityContext/fsGroup
+        value: 65534
+
+  # Add production annotations for monitoring
+  - target:
+      kind: Deployment
+    patch: |
+      - op: add
+        path: /spec/template/metadata/annotations/prometheus.io~1scrape
+        value: "true"
+      - op: add
+        path: /spec/template/metadata/annotations/prometheus.io~1port
+        value: "8080"
+      - op: add
+        path: /spec/template/metadata/annotations/prometheus.io~1path
+        value: "/metrics"
+
+# Replacements for production
+replacements:
+  - source:
+      kind: ConfigMap
+      name: echo-prod-config
+      fieldPath: data.NODE_ENV
+    targets:
+      - select:
+          kind: Deployment
+          name: echo-app
+        fieldPaths:
+          - spec.template.spec.containers.[name=echo-app].env.[name=NODE_ENV].value
+
+# Production-specific generators
+generators:
+  - generator.yaml

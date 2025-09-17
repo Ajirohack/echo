@@ -1,0 +1,59 @@
+{
+  "version": "1.0.0",
+  "audio": {
+    "inputDevice": "default",
+    "outputDevice": "default",
+    "sampleRate": 44100,
+    "channels": 1,
+    "noiseSuppressionEnabled": true,
+    "echoCancellationEnabled": true
+  },
+  "translation": {
+    "defaultService": "google",
+    "sourceLanguage": "auto",
+    "targetLanguage": "en",
+    "autoDetectLanguage": true,
+    "confidenceThreshold": 0.7
+  },
+  "services": {
+    "google": {
+      "enabled": true,
+      "apiKey": "",
+      "model": "default"
+    },
+    "deepl": {
+      "enabled": false,
+      "apiKey": "",
+      "formality": "default"
+    },
+    "azure": {
+      "enabled": false,
+      "apiKey": "",
+      "region": "eastus"
+    },
+    "openai": {
+      "enabled": false,
+      "apiKey": "",
+      "model": "gpt-3.5-turbo"
+    }
+  },
+  "ui": {
+    "theme": "light",
+    "fontSize": "medium",
+    "language": "en",
+    "showNotifications": true,
+    "minimizeToTray": false
+  },
+  "privacy": {
+    "saveTranslationHistory": true,
+    "logLevel": "info",
+    "shareUsageData": false,
+    "autoDeleteOldLogs": true
+  },
+  "performance": {
+    "enableCache": true,
+    "cacheSize": 100,
+    "maxConcurrentRequests": 3,
+    "requestTimeout": 30000
+  }
+}

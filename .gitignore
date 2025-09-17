@@ -161,3 +161,6 @@ $RECYCLE.BIN/
 *.msm
 *.msp
 *.lnk
+
+*storybook.log
+storybook-static

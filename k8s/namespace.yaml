@@ -1,0 +1,145 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: echo
+  labels:
+    name: echo
+    app.kubernetes.io/name: echo
+    app.kubernetes.io/version: v1
+    app.kubernetes.io/component: namespace
+  annotations:
+    description: 'Echo real-time translation application namespace'
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: echo-config
+  namespace: echo
+  labels:
+    app: echo
+    component: config
+data:
+  production.json: |
+    {
+      "server": {
+        "port": 3000,
+        "websocketPort": 8080,
+        "metricsPort": 9000,
+        "host": "0.0.0.0",
+        "cors": {
+          "origin": ["https://echo.example.com", "https://app.echo.example.com"],
+          "credentials": true
+        }
+      },
+      "audio": {
+        "maxFileSize": "50MB",
+        "allowedFormats": ["wav", "mp3", "m4a", "ogg"],
+        "sampleRate": 44100,
+        "channels": 1,
+        "bitDepth": 16,
+        "processingTimeout": 30000,
+        "storageRetention": "7d"
+      },
+      "translation": {
+        "maxTextLength": 5000,
+        "supportedLanguages": [
+          "en", "es", "fr", "de", "it", "pt", "ru", "ja", "ko", "zh",
+          "ar", "hi", "tr", "pl", "nl", "sv", "da", "no", "fi"
+        ],
+        "defaultConfidenceThreshold": 0.8,
+        "batchSize": 10,
+        "timeout": 15000
+      },
+      "rtc": {
+        "maxParticipants": 50,
+        "roomTimeout": 3600000,
+        "connectionTimeout": 30000,
+        "heartbeatInterval": 30000,
+        "iceServers": [
+          {
+            "urls": "stun:stun.l.google.com:19302"
+          }
+        ]
+      },
+      "security": {
+        "rateLimiting": {
+          "windowMs": 900000,
+          "max": 1000,
+          "message": "Too many requests from this IP"
+        },
+        "session": {
+          "maxAge": 604800000,
+          "secure": true,
+          "httpOnly": true,
+          "sameSite": "strict"
+        },
+        "jwt": {
+          "expiresIn": "7d",
+          "algorithm": "HS256"
+        }
+      },
+      "monitoring": {
+        "enabled": true,
+        "metricsInterval": 30000,
+        "healthCheck": {
+          "timeout": 5000,
+          "interval": 10000
+        }
+      },
+      "logging": {
+        "level": "info",
+        "format": "json",
+        "maxFiles": 5,
+        "maxSize": "10m",
+        "datePattern": "YYYY-MM-DD"
+      }
+    }
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: echo-secrets
+  namespace: echo
+  labels:
+    app: echo
+    component: secrets
+type: Opaque
+stringData:
+  redis-url: 'redis://echo-redis-service:6379'
+  postgres-url: 'postgresql://echo:CHANGE_ME@echo-postgres-service:5432/echo_db'
+  elasticsearch-url: 'http://echo-elasticsearch-service:9200'
+  jwt-secret: 'CHANGE_ME_JWT_SECRET_KEY_MINIMUM_32_CHARACTERS'
+  postgres-password: 'CHANGE_ME_POSTGRES_PASSWORD'
+  redis-password: 'CHANGE_ME_REDIS_PASSWORD'
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: echo-audio-pvc
+  namespace: echo
+  labels:
+    app: echo
+    component: storage
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 100Gi
+  storageClassName: fast-ssd
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: echo-logs-pvc
+  namespace: echo
+  labels:
+    app: echo
+    component: logging
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 20Gi
+  storageClassName: standard

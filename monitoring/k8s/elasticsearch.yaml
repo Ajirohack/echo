@@ -1,0 +1,552 @@
+# Elasticsearch Deployment for Echo Application Logging
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: elasticsearch-config
+  namespace: echo-monitoring
+  labels:
+    app: elasticsearch
+data:
+  elasticsearch.yml: |
+    cluster.name: echo-logs
+    node.name: ${HOSTNAME}
+    network.host: 0.0.0.0
+    discovery.type: single-node
+
+    # Security settings
+    xpack.security.enabled: false
+    xpack.monitoring.collection.enabled: true
+
+    # Performance settings
+    bootstrap.memory_lock: true
+    indices.memory.index_buffer_size: 30%
+
+    # Index settings
+    action.auto_create_index: "+echo-logs-*,-*"
+
+    # Logging
+    logger.org.elasticsearch.discovery: WARN
+    logger.org.elasticsearch.cluster.service: WARN
+
+    # Thread pool settings
+    thread_pool.write.queue_size: 1000
+    thread_pool.search.queue_size: 1000
+
+    # Index lifecycle management
+    xpack.ilm.enabled: true
+
+  jvm.options: |
+    -Xms2g
+    -Xmx2g
+    -XX:+UseG1GC
+    -XX:G1HeapRegionSize=16m
+    -XX:+UseG1GC
+    -XX:+UnlockExperimentalVMOptions
+    -XX:+UseCGroupMemoryLimitForHeap
+    -Djava.awt.headless=true
+    -Dfile.encoding=UTF-8
+    -Djna.nosys=true
+    -Djdk.io.permissionsUseCanonicalPath=true
+    -Dio.netty.noUnsafe=true
+    -Dio.netty.noKeySetOptimization=true
+    -Dlog4j2.disable.jmx=true
+    -Dlog4j.shutdownHookEnabled=false
+    -Dlog4j2.formatMsgNoLookups=true
+
+---
+# Elasticsearch StatefulSet
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: elasticsearch
+  namespace: echo-monitoring
+  labels:
+    app: elasticsearch
+spec:
+  serviceName: elasticsearch
+  replicas: 1
+  selector:
+    matchLabels:
+      app: elasticsearch
+  template:
+    metadata:
+      labels:
+        app: elasticsearch
+      annotations:
+        prometheus.io/scrape: 'true'
+        prometheus.io/port: '9200'
+    spec:
+      securityContext:
+        fsGroup: 1000
+      initContainers:
+        - name: fix-permissions
+          image: busybox:1.35
+          command: ['sh', '-c', 'chown -R 1000:1000 /usr/share/elasticsearch/data']
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: elasticsearch-data
+              mountPath: /usr/share/elasticsearch/data
+        - name: increase-vm-max-map
+          image: busybox:1.35
+          command: ['sysctl', '-w', 'vm.max_map_count=262144']
+          securityContext:
+            privileged: true
+        - name: increase-fd-ulimit
+          image: busybox:1.35
+          command: ['sh', '-c', 'ulimit -n 65536']
+          securityContext:
+            privileged: true
+      containers:
+        - name: elasticsearch
+          image: docker.elastic.co/elasticsearch/elasticsearch:8.8.0
+          ports:
+            - containerPort: 9200
+              name: http
+            - containerPort: 9300
+              name: transport
+          env:
+            - name: node.name
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: cluster.name
+              value: 'echo-logs'
+            - name: discovery.type
+              value: 'single-node'
+            - name: ES_JAVA_OPTS
+              value: '-Xms2g -Xmx2g'
+            - name: xpack.security.enabled
+              value: 'false'
+            - name: xpack.monitoring.collection.enabled
+              value: 'true'
+          resources:
+            requests:
+              cpu: 1000m
+              memory: 3Gi
+            limits:
+              cpu: 2000m
+              memory: 4Gi
+          volumeMounts:
+            - name: elasticsearch-data
+              mountPath: /usr/share/elasticsearch/data
+            - name: elasticsearch-config
+              mountPath: /usr/share/elasticsearch/config/elasticsearch.yml
+              subPath: elasticsearch.yml
+            - name: elasticsearch-config
+              mountPath: /usr/share/elasticsearch/config/jvm.options
+              subPath: jvm.options
+          livenessProbe:
+            httpGet:
+              path: /_cluster/health
+              port: 9200
+            initialDelaySeconds: 90
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /_cluster/health?wait_for_status=yellow&timeout=5s
+              port: 9200
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+      volumes:
+        - name: elasticsearch-config
+          configMap:
+            name: elasticsearch-config
+  volumeClaimTemplates:
+    - metadata:
+        name: elasticsearch-data
+      spec:
+        accessModes: ['ReadWriteOnce']
+        storageClassName: fast-ssd
+        resources:
+          requests:
+            storage: 100Gi
+
+---
+# Elasticsearch Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch
+  namespace: echo-monitoring
+  labels:
+    app: elasticsearch
+  annotations:
+    prometheus.io/scrape: 'true'
+    prometheus.io/port: '9200'
+spec:
+  selector:
+    app: elasticsearch
+  type: ClusterIP
+  ports:
+    - port: 9200
+      targetPort: 9200
+      protocol: TCP
+      name: http
+    - port: 9300
+      targetPort: 9300
+      protocol: TCP
+      name: transport
+
+---
+# Elasticsearch Headless Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch-headless
+  namespace: echo-monitoring
+  labels:
+    app: elasticsearch
+spec:
+  clusterIP: None
+  selector:
+    app: elasticsearch
+  ports:
+    - port: 9200
+      targetPort: 9200
+      name: http
+    - port: 9300
+      targetPort: 9300
+      name: transport
+
+---
+# Kibana Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kibana
+  namespace: echo-monitoring
+  labels:
+    app: kibana
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kibana
+  template:
+    metadata:
+      labels:
+        app: kibana
+    spec:
+      containers:
+        - name: kibana
+          image: docker.elastic.co/kibana/kibana:8.8.0
+          ports:
+            - containerPort: 5601
+          env:
+            - name: ELASTICSEARCH_HOSTS
+              value: 'http://elasticsearch:9200'
+            - name: SERVER_NAME
+              value: 'kibana'
+            - name: SERVER_HOST
+              value: '0.0.0.0'
+            - name: SERVER_BASEPATH
+              value: '/kibana'
+            - name: SERVER_REWRITEBASEPATH
+              value: 'true'
+            - name: XPACK_SECURITY_ENABLED
+              value: 'false'
+            - name: XPACK_MONITORING_ENABLED
+              value: 'true'
+            - name: LOGGING_QUIET
+              value: 'true'
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: 1000m
+              memory: 2Gi
+          volumeMounts:
+            - name: kibana-config
+              mountPath: /usr/share/kibana/config/kibana.yml
+              subPath: kibana.yml
+          livenessProbe:
+            httpGet:
+              path: /kibana/api/status
+              port: 5601
+            initialDelaySeconds: 120
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /kibana/api/status
+              port: 5601
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+      volumes:
+        - name: kibana-config
+          configMap:
+            name: kibana-config
+
+---
+# Kibana ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kibana-config
+  namespace: echo-monitoring
+data:
+  kibana.yml: |
+    server.name: kibana
+    server.host: 0.0.0.0
+    server.port: 5601
+    server.basePath: "/kibana"
+    server.rewriteBasePath: true
+
+    elasticsearch.hosts: ["http://elasticsearch:9200"]
+    elasticsearch.pingTimeout: 1500
+    elasticsearch.requestTimeout: 30000
+    elasticsearch.startupTimeout: 5000
+
+    xpack.security.enabled: false
+    xpack.monitoring.enabled: true
+
+    logging.quiet: true
+    logging.dest: stdout
+
+    # Index patterns
+    kibana.defaultAppId: "discover"
+
+    # Saved objects
+    savedObjects.maxImportPayloadBytes: 26214400
+
+    # Maps
+    map.includeElasticMapsService: false
+
+    # Telemetry
+    telemetry.enabled: false
+    telemetry.optIn: false
+
+---
+# Kibana Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: kibana
+  namespace: echo-monitoring
+  labels:
+    app: kibana
+spec:
+  selector:
+    app: kibana
+  type: ClusterIP
+  ports:
+    - port: 5601
+      targetPort: 5601
+      protocol: TCP
+
+---
+# Elasticsearch Exporter for Prometheus
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: elasticsearch-exporter
+  namespace: echo-monitoring
+  labels:
+    app: elasticsearch-exporter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: elasticsearch-exporter
+  template:
+    metadata:
+      labels:
+        app: elasticsearch-exporter
+      annotations:
+        prometheus.io/scrape: 'true'
+        prometheus.io/port: '9114'
+    spec:
+      containers:
+        - name: elasticsearch-exporter
+          image: quay.io/prometheuscommunity/elasticsearch-exporter:v1.6.0
+          args:
+            - '--es.uri=http://elasticsearch:9200'
+            - '--es.all'
+            - '--es.indices'
+            - '--es.indices_settings'
+            - '--es.indices_mappings'
+            - '--es.shards'
+            - '--es.snapshots'
+            - '--es.timeout=30s'
+            - '--web.listen-address=:9114'
+            - '--web.telemetry-path=/metrics'
+          ports:
+            - containerPort: 9114
+              name: metrics
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 9114
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 9114
+            initialDelaySeconds: 10
+            periodSeconds: 5
+
+---
+# Elasticsearch Exporter Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch-exporter
+  namespace: echo-monitoring
+  labels:
+    app: elasticsearch-exporter
+  annotations:
+    prometheus.io/scrape: 'true'
+    prometheus.io/port: '9114'
+spec:
+  selector:
+    app: elasticsearch-exporter
+  type: ClusterIP
+  ports:
+    - port: 9114
+      targetPort: 9114
+      protocol: TCP
+      name: metrics
+
+---
+# Index Lifecycle Management Policy
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: elasticsearch-ilm-policy
+  namespace: echo-monitoring
+data:
+  setup-ilm.sh: |
+    #!/bin/bash
+    set -e
+
+    # Wait for Elasticsearch to be ready
+    until curl -s "http://elasticsearch:9200/_cluster/health?wait_for_status=yellow&timeout=60s" > /dev/null; do
+      echo "Waiting for Elasticsearch..."
+      sleep 5
+    done
+
+    # Create ILM policy for Echo logs
+    curl -X PUT "http://elasticsearch:9200/_ilm/policy/echo-logs-policy" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "policy": {
+          "phases": {
+            "hot": {
+              "min_age": "0ms",
+              "actions": {
+                "rollover": {
+                  "max_size": "5gb",
+                  "max_age": "1d"
+                },
+                "set_priority": {
+                  "priority": 100
+                }
+              }
+            },
+            "warm": {
+              "min_age": "7d",
+              "actions": {
+                "set_priority": {
+                  "priority": 50
+                },
+                "allocate": {
+                  "number_of_replicas": 0
+                },
+                "forcemerge": {
+                  "max_num_segments": 1
+                }
+              }
+            },
+            "cold": {
+              "min_age": "30d",
+              "actions": {
+                "set_priority": {
+                  "priority": 0
+                },
+                "allocate": {
+                  "number_of_replicas": 0
+                }
+              }
+            },
+            "delete": {
+              "min_age": "90d",
+              "actions": {
+                "delete": {}
+              }
+            }
+          }
+        }
+      }'
+
+    # Create index template for Echo logs
+    curl -X PUT "http://elasticsearch:9200/_index_template/echo-logs-template" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "index_patterns": ["echo-logs-*"],
+        "template": {
+          "settings": {
+            "number_of_shards": 1,
+            "number_of_replicas": 0,
+            "index.lifecycle.name": "echo-logs-policy",
+            "index.lifecycle.rollover_alias": "echo-logs"
+          }
+        },
+        "priority": 200,
+        "version": 1
+      }'
+
+    # Create initial index
+    curl -X PUT "http://elasticsearch:9200/echo-logs-000001" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "aliases": {
+          "echo-logs": {
+            "is_write_index": true
+          }
+        }
+      }'
+
+    echo "ILM policy and index template created successfully"
+
+---
+# ILM Setup Job
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: elasticsearch-ilm-setup
+  namespace: echo-monitoring
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: setup-ilm
+          image: curlimages/curl:8.1.2
+          command: ['/bin/sh']
+          args: ['/scripts/setup-ilm.sh']
+          volumeMounts:
+            - name: setup-script
+              mountPath: /scripts
+      volumes:
+        - name: setup-script
+          configMap:
+            name: elasticsearch-ilm-policy
+            defaultMode: 0755

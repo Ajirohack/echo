@@ -20,12 +20,12 @@ class STTConfigManager {
    */
   _getDefaultConfigPath() {
     const configDir = path.join(process.cwd(), 'config');
-    
+
     // Ensure config directory exists
     if (!fs.existsSync(configDir)) {
       fs.mkdirSync(configDir, { recursive: true });
     }
-    
+
     return path.join(configDir, 'stt-config.json');
   }
 
@@ -39,19 +39,18 @@ class STTConfigManager {
       if (fs.existsSync(this.configPath)) {
         const fileContent = fs.readFileSync(this.configPath, 'utf-8');
         const config = JSON.parse(fileContent);
-        
+
         // Validate and migrate config if needed
         return this._validateAndMigrateConfig(config);
       }
-      
+
       // Create default config if it doesn't exist
       const defaultConfig = this._getDefaultConfig();
       this._saveConfig(defaultConfig);
       return defaultConfig;
-      
     } catch (error) {
       logger.error('Error loading STT config:', error);
-      
+
       // Return default config on error
       const defaultConfig = this._getDefaultConfig();
       this._saveConfig(defaultConfig);
@@ -66,19 +65,15 @@ class STTConfigManager {
   _saveConfig(config) {
     try {
       const configDir = path.dirname(this.configPath);
-      
+
       // Ensure config directory exists
       if (!fs.existsSync(configDir)) {
         fs.mkdirSync(configDir, { recursive: true });
       }
-      
+
       // Write config file with pretty print
-      fs.writeFileSync(
-        this.configPath,
-        JSON.stringify(config, null, 2),
-        'utf-8'
-      );
-      
+      fs.writeFileSync(this.configPath, JSON.stringify(config, null, 2), 'utf-8');
+
       return true;
     } catch (error) {
       logger.error('Error saving STT config:', error);
@@ -109,7 +104,7 @@ class STTConfigManager {
           model: 'whisper-1',
           temperature: 0,
           responseFormat: 'json',
-          timeout: 30000
+          timeout: 30000,
         },
         azure: {
           enabled: false,
@@ -118,18 +113,19 @@ class STTConfigManager {
           language: 'en-US',
           profanity: 'Masked',
           speechRecognitionMode: 'conversation',
-          endpointId: null
+          endpointId: null,
         },
         google: {
           enabled: false,
-          credentials: process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON ? 
-            JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) : null,
+          credentials: process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON
+            ? JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON)
+            : null,
           keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS || '',
           projectId: process.env.GOOGLE_CLOUD_PROJECT || '',
           languageCode: 'en-US',
           model: 'default',
           useEnhanced: true,
-          enableAutomaticPunctuation: true
+          enableAutomaticPunctuation: true,
         },
         gpt4o: {
           enabled: false,
@@ -137,8 +133,8 @@ class STTConfigManager {
           model: 'gpt-4o',
           temperature: 0,
           responseFormat: 'text',
-          timeout: 30000
-        }
+          timeout: 30000,
+        },
       },
       audio: {
         sampleRate: 16000,
@@ -147,23 +143,23 @@ class STTConfigManager {
         format: 'wav',
         codec: 'pcm_s16le',
         silenceThreshold: -50,
-        silenceDuration: 0.5
+        silenceDuration: 0.5,
       },
       cache: {
         enabled: true,
         ttl: 86400, // 24 hours in seconds
-        maxSize: 1073741824 // 1GB in bytes
+        maxSize: 1073741824, // 1GB in bytes
       },
       logging: {
         level: 'info',
         maxFiles: 10,
-        maxSize: 10485760 // 10MB
+        maxSize: 10485760, // 10MB
       },
       advanced: {
         enableProfiling: false,
         enableDebugLogs: false,
-        enablePerformanceMetrics: true
-      }
+        enablePerformanceMetrics: true,
+      },
     };
   }
 
@@ -177,20 +173,20 @@ class STTConfigManager {
     }
 
     const defaultConfig = this._getDefaultConfig();
-    
+
     // Migrate from older versions if needed
     if (!config.version) {
       // Migration from version < 1.0.0
       config = this._migrateToV1(config);
     }
-    
+
     // Ensure all top-level properties exist
     for (const [key, value] of Object.entries(defaultConfig)) {
       if (config[key] === undefined) {
         config[key] = value;
       }
     }
-    
+
     // Ensure all services exist and have required properties
     for (const service of Object.keys(defaultConfig.services)) {
       if (!config.services[service]) {
@@ -204,13 +200,13 @@ class STTConfigManager {
         }
       }
     }
-    
+
     // Save the migrated config
     if (config.version !== defaultConfig.version) {
       config.version = defaultConfig.version;
       this._saveConfig(config);
     }
-    
+
     return config;
   }
 
@@ -220,42 +216,42 @@ class STTConfigManager {
    */
   _migrateToV1(oldConfig) {
     const newConfig = this._getDefaultConfig();
-    
+
     // Simple property migration
     const propertyMap = {
-      'defaultService': 'defaultService',
-      'autoDetectLanguage': 'autoDetectLanguage',
-      'defaultLanguage': 'defaultLanguage',
-      'confidenceThreshold': 'confidenceThreshold',
-      'maxRetries': 'maxRetries'
+      defaultService: 'defaultService',
+      autoDetectLanguage: 'autoDetectLanguage',
+      defaultLanguage: 'defaultLanguage',
+      confidenceThreshold: 'confidenceThreshold',
+      maxRetries: 'maxRetries',
     };
-    
+
     for (const [oldKey, newKey] of Object.entries(propertyMap)) {
       if (oldConfig[oldKey] !== undefined) {
         newConfig[newKey] = oldConfig[oldKey];
       }
     }
-    
+
     // Service configurations
     if (oldConfig.services) {
       for (const [service, serviceConfig] of Object.entries(oldConfig.services)) {
         if (newConfig.services[service] && serviceConfig) {
           newConfig.services[service] = {
             ...newConfig.services[service],
-            ...serviceConfig
+            ...serviceConfig,
           };
         }
       }
     }
-    
+
     // Audio settings
     if (oldConfig.audio) {
       newConfig.audio = {
         ...newConfig.audio,
-        ...oldConfig.audio
+        ...oldConfig.audio,
       };
     }
-    
+
     return newConfig;
   }
 
@@ -276,14 +272,14 @@ class STTConfigManager {
     try {
       // Create a deep merge of the current config and updates
       const newConfig = this._deepMerge(this.config, updates);
-      
+
       // Validate the new config
       const validatedConfig = this._validateAndMigrateConfig(newConfig);
-      
+
       // Save the updated config
       this.config = validatedConfig;
       this._saveConfig(validatedConfig);
-      
+
       return true;
     } catch (error) {
       logger.error('Error updating STT config:', error);
@@ -300,7 +296,7 @@ class STTConfigManager {
     if (!this.config.services[serviceName]) {
       throw new Error(`Unknown service: ${serviceName}`);
     }
-    
+
     return { ...this.config.services[serviceName] }; // Return a copy
   }
 
@@ -314,14 +310,14 @@ class STTConfigManager {
     if (!this.config.services[serviceName]) {
       throw new Error(`Unknown service: ${serviceName}`);
     }
-    
+
     return this.updateConfig({
       services: {
         [serviceName]: {
           ...this.config.services[serviceName],
-          ...updates
-        }
-      }
+          ...updates,
+        },
+      },
     });
   }
 
@@ -331,8 +327,8 @@ class STTConfigManager {
    */
   getEnabledServices() {
     const { services, fallbackOrder } = this.config;
-    return fallbackOrder.filter(service => 
-      services[service] && services[service].enabled !== false
+    return fallbackOrder.filter(
+      (service) => services[service] && services[service].enabled !== false
     );
   }
 
@@ -342,9 +338,9 @@ class STTConfigManager {
    */
   _deepMerge(target, source) {
     const output = { ...target };
-    
+
     if (this._isObject(target) && this._isObject(source)) {
-      Object.keys(source).forEach(key => {
+      Object.keys(source).forEach((key) => {
         if (this._isObject(source[key])) {
           if (!(key in target)) {
             Object.assign(output, { [key]: source[key] });
@@ -356,7 +352,7 @@ class STTConfigManager {
         }
       });
     }
-    
+
     return output;
   }
 

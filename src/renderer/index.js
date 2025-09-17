@@ -8,6 +8,9 @@ const { AudioOutlined } = require('@ant-design/icons');
 
 // Import components
 const AudioTestPage = require('./pages/AudioTestPage').default;
+const DashboardPage = require('./pages/DashboardPage').default;
+const SettingsPage = require('./pages/SettingsPage').default;
+const WelcomePage = require('./pages/WelcomePage').default;
 const AppLayout = require('./components/AppLayout').default;
 
 // Import styles
@@ -19,17 +22,24 @@ const App = () => (
     <ConfigProvider
       theme={{
         token: {
-          colorPrimary: '#1890ff',
-          borderRadius: 4,
-          colorBgContainer: '#ffffff',
+          colorPrimary: '#bfa6c9',
+          borderRadius: 8,
+          colorBgContainer: '#232323',
+          colorText: '#f5f5f5',
+          colorTextSecondary: '#b7b7b7',
+          colorBorder: '#333',
+          colorBorderSecondary: '#444',
         },
       }}
     >
       <BrowserRouter>
         <AppLayout>
           <Routes>
-            <Route path="/" element={<AudioTestPage />} />
+            <Route path="/" element={<DashboardPage />} />
+            <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/audio-test" element={<AudioTestPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/welcome" element={<WelcomePage />} />
             {/* Add more routes as needed */}
           </Routes>
         </AppLayout>

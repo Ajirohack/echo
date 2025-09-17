@@ -1,0 +1,512 @@
+# ConfigMaps for Echo Monitoring Stack
+---
+# Prometheus Rules ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-rules
+  namespace: echo-monitoring
+  labels:
+    app: prometheus
+data:
+  echo-alerts.yml: |
+    groups:
+    - name: echo.application
+      rules:
+      - alert: EchoAppDown
+        expr: up{job="echo-app"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: echo-app
+        annotations:
+          summary: "Echo application is down"
+          description: "Echo application has been down for more than 1 minute on {{ $labels.instance }}"
+      
+      - alert: EchoHighErrorRate
+        expr: rate(echo_http_requests_total{status=~"5.."}[5m]) / rate(echo_http_requests_total[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+          service: echo-app
+        annotations:
+          summary: "High error rate in Echo application"
+          description: "Error rate is {{ $value | humanizePercentage }} on {{ $labels.instance }}"
+      
+      - alert: EchoHighLatency
+        expr: histogram_quantile(0.95, rate(echo_http_request_duration_seconds_bucket[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+          service: echo-app
+        annotations:
+          summary: "High latency in Echo application"
+          description: "95th percentile latency is {{ $value }}s on {{ $labels.instance }}"
+      
+      - alert: EchoWebRTCConnectionsHigh
+        expr: echo_webrtc_active_connections > 1000
+        for: 5m
+        labels:
+          severity: warning
+          service: echo-app
+        annotations:
+          summary: "High number of WebRTC connections"
+          description: "WebRTC connections count is {{ $value }} on {{ $labels.instance }}"
+      
+      - alert: EchoAudioProcessingErrors
+        expr: rate(echo_audio_processing_errors_total[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: critical
+          service: echo-app
+        annotations:
+          summary: "Audio processing errors detected"
+          description: "Audio processing error rate is {{ $value }} per second on {{ $labels.instance }}"
+
+    - name: echo.infrastructure
+      rules:
+      - alert: EchoHighCPUUsage
+        expr: rate(container_cpu_usage_seconds_total{pod=~"echo-.*"}[5m]) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: infrastructure
+        annotations:
+          summary: "High CPU usage in Echo pods"
+          description: "CPU usage is {{ $value }}% on pod {{ $labels.pod }}"
+      
+      - alert: EchoHighMemoryUsage
+        expr: container_memory_usage_bytes{pod=~"echo-.*"} / container_spec_memory_limit_bytes * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          service: infrastructure
+        annotations:
+          summary: "High memory usage in Echo pods"
+          description: "Memory usage is {{ $value }}% on pod {{ $labels.pod }}"
+      
+      - alert: EchoPodCrashLooping
+        expr: rate(kube_pod_container_status_restarts_total{pod=~"echo-.*"}[15m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+          service: infrastructure
+        annotations:
+          summary: "Echo pod is crash looping"
+          description: "Pod {{ $labels.pod }} is restarting frequently"
+      
+      - alert: EchoPodNotReady
+        expr: kube_pod_status_ready{condition="false", pod=~"echo-.*"} == 1
+        for: 5m
+        labels:
+          severity: warning
+          service: infrastructure
+        annotations:
+          summary: "Echo pod is not ready"
+          description: "Pod {{ $labels.pod }} has been not ready for more than 5 minutes"
+
+    - name: echo.database
+      rules:
+      - alert: EchoPostgreSQLDown
+        expr: up{job="postgresql"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: database
+        annotations:
+          summary: "PostgreSQL is down"
+          description: "PostgreSQL database is not responding"
+      
+      - alert: EchoPostgreSQLHighConnections
+        expr: pg_stat_database_numbackends / pg_settings_max_connections * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: database
+        annotations:
+          summary: "High PostgreSQL connections"
+          description: "PostgreSQL connection usage is {{ $value }}%"
+      
+      - alert: EchoRedisDown
+        expr: up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: database
+        annotations:
+          summary: "Redis is down"
+          description: "Redis cache is not responding"
+      
+      - alert: EchoRedisHighMemoryUsage
+        expr: redis_memory_used_bytes / redis_memory_max_bytes * 100 > 90
+        for: 5m
+        labels:
+          severity: warning
+          service: database
+        annotations:
+          summary: "High Redis memory usage"
+          description: "Redis memory usage is {{ $value }}%"
+
+---
+# Grafana Dashboards ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+  namespace: echo-monitoring
+  labels:
+    app: grafana
+data:
+  echo-overview.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "Echo Application Overview",
+        "tags": ["echo", "overview"],
+        "style": "dark",
+        "timezone": "browser",
+        "panels": [
+          {
+            "id": 1,
+            "title": "HTTP Request Rate",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "sum(rate(echo_http_requests_total[5m]))",
+                "legendFormat": "Requests/sec"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "thresholds"
+                },
+                "thresholds": {
+                  "steps": [
+                    {"color": "green", "value": null},
+                    {"color": "yellow", "value": 100},
+                    {"color": "red", "value": 500}
+                  ]
+                },
+                "unit": "reqps"
+              }
+            },
+            "gridPos": {"h": 8, "w": 6, "x": 0, "y": 0}
+          },
+          {
+            "id": 2,
+            "title": "Response Time (95th percentile)",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.95, rate(echo_http_request_duration_seconds_bucket[5m]))",
+                "legendFormat": "95th percentile"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "thresholds"
+                },
+                "thresholds": {
+                  "steps": [
+                    {"color": "green", "value": null},
+                    {"color": "yellow", "value": 1},
+                    {"color": "red", "value": 2}
+                  ]
+                },
+                "unit": "s"
+              }
+            },
+            "gridPos": {"h": 8, "w": 6, "x": 6, "y": 0}
+          },
+          {
+            "id": 3,
+            "title": "Active WebRTC Connections",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "sum(echo_webrtc_active_connections)",
+                "legendFormat": "Active Connections"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "thresholds"
+                },
+                "thresholds": {
+                  "steps": [
+                    {"color": "green", "value": null},
+                    {"color": "yellow", "value": 500},
+                    {"color": "red", "value": 1000}
+                  ]
+                },
+                "unit": "short"
+              }
+            },
+            "gridPos": {"h": 8, "w": 6, "x": 12, "y": 0}
+          },
+          {
+            "id": 4,
+            "title": "Error Rate",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "sum(rate(echo_http_requests_total{status=~\"5..\"}[5m])) / sum(rate(echo_http_requests_total[5m])) * 100",
+                "legendFormat": "Error Rate"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "thresholds"
+                },
+                "thresholds": {
+                  "steps": [
+                    {"color": "green", "value": null},
+                    {"color": "yellow", "value": 1},
+                    {"color": "red", "value": 5}
+                  ]
+                },
+                "unit": "percent"
+              }
+            },
+            "gridPos": {"h": 8, "w": 6, "x": 18, "y": 0}
+          }
+        ],
+        "time": {
+          "from": "now-1h",
+          "to": "now"
+        },
+        "refresh": "30s"
+      }
+    }
+
+  echo-webrtc.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "Echo WebRTC Metrics",
+        "tags": ["echo", "webrtc"],
+        "style": "dark",
+        "timezone": "browser",
+        "panels": [
+          {
+            "id": 1,
+            "title": "WebRTC Connection Trends",
+            "type": "timeseries",
+            "targets": [
+              {
+                "expr": "echo_webrtc_active_connections",
+                "legendFormat": "Active Connections - {{instance}}"
+              },
+              {
+                "expr": "rate(echo_webrtc_connections_established_total[5m])",
+                "legendFormat": "New Connections/sec - {{instance}}"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+          },
+          {
+            "id": 2,
+            "title": "Audio Quality Metrics",
+            "type": "timeseries",
+            "targets": [
+              {
+                "expr": "echo_audio_latency_seconds",
+                "legendFormat": "Audio Latency - {{instance}}"
+              },
+              {
+                "expr": "echo_audio_packet_loss_ratio",
+                "legendFormat": "Packet Loss - {{instance}}"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+          }
+        ],
+        "time": {
+          "from": "now-1h",
+          "to": "now"
+        },
+        "refresh": "30s"
+      }
+    }
+
+---
+# Fluentd ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fluentd-config
+  namespace: echo-monitoring
+  labels:
+    app: fluentd
+data:
+  fluent.conf: |
+    # System settings
+    <system>
+      workers 2
+      root_dir /tmp/fluentd
+      log_level info
+    </system>
+
+    # Input sources
+    <source>
+      @type tail
+      @id in_tail_container_logs
+      path /var/log/containers/*.log
+      pos_file /var/log/fluentd-containers.log.pos
+      tag kubernetes.*
+      read_from_head true
+      <parse>
+        @type json
+        time_format %Y-%m-%dT%H:%M:%S.%NZ
+      </parse>
+    </source>
+
+    <source>
+      @type forward
+      @id input_forward
+      port 24224
+      bind 0.0.0.0
+    </source>
+
+    <source>
+      @type http
+      @id input_http
+      port 9880
+      bind 0.0.0.0
+    </source>
+
+    <source>
+      @type prometheus
+      @id input_prometheus
+      port 24231
+      bind 0.0.0.0
+    </source>
+
+    # Kubernetes metadata filter
+    <filter kubernetes.**>
+      @type kubernetes_metadata
+      @id filter_kube_metadata
+      kubernetes_url "#{ENV['KUBERNETES_SERVICE_HOST']}:#{ENV['KUBERNETES_SERVICE_PORT_HTTPS']}"
+      verify_ssl "#{ENV['KUBERNETES_VERIFY_SSL'] || true}"
+      ca_file "#{ENV['KUBERNETES_CA_FILE']}"
+      skip_labels false
+      skip_container_metadata false
+      skip_master_url false
+      skip_namespace_metadata false
+    </filter>
+
+    # Echo application log parsing
+    <filter kubernetes.**echo**>
+      @type parser
+      @id filter_echo_parser
+      key_name log
+      reserve_data true
+      remove_key_name_field true
+      <parse>
+        @type json
+        time_key timestamp
+        time_format %Y-%m-%dT%H:%M:%S.%NZ
+      </parse>
+    </filter>
+
+    # Add environment and service labels
+    <filter kubernetes.**>
+      @type record_transformer
+      @id filter_transformer
+      <record>
+        environment "#{ENV['ENVIRONMENT'] || 'production'}"
+        cluster "#{ENV['CLUSTER_NAME'] || 'echo-production'}"
+        service_name ${record.dig("kubernetes", "labels", "app") || "unknown"}
+      </record>
+    </filter>
+
+    # Output to Elasticsearch
+    <match kubernetes.**>
+      @type elasticsearch
+      @id out_es
+      host elasticsearch
+      port 9200
+      scheme http
+      index_name echo-logs
+      type_name _doc
+      logstash_format true
+      logstash_prefix echo-logs
+      logstash_dateformat %Y.%m.%d
+      include_tag_key true
+      tag_key @log_name
+      <buffer>
+        @type file
+        path /var/log/fluentd-buffers/kubernetes.system.buffer
+        flush_mode interval
+        retry_type exponential_backoff
+        flush_thread_count 2
+        flush_interval 5s
+        retry_forever
+        retry_max_interval 30
+        chunk_limit_size 2M
+        queue_limit_length 8
+        overflow_action block
+      </buffer>
+    </match>
+
+    # Output metrics to Prometheus
+    <match **>
+      @type prometheus
+      @id out_prometheus
+      <metric>
+        name fluentd_input_status_num_records_total
+        type counter
+        desc The total number of incoming records
+        <labels>
+          tag ${tag}
+          hostname ${hostname}
+        </labels>
+      </metric>
+    </match>
+
+---
+# Node Exporter DaemonSet ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: node-exporter-config
+  namespace: echo-monitoring
+  labels:
+    app: node-exporter
+data:
+  config.yaml: |
+    # Node Exporter configuration
+    collectors:
+      enabled:
+        - cpu
+        - diskstats
+        - filesystem
+        - loadavg
+        - meminfo
+        - netdev
+        - netstat
+        - stat
+        - time
+        - uname
+        - vmstat
+      disabled:
+        - arp
+        - bcache
+        - bonding
+        - conntrack
+        - entropy
+        - hwmon
+        - infiniband
+        - ipvs
+        - mdadm
+        - nfs
+        - nfsd
+        - sockstat
+        - textfile
+        - wifi
+        - xfs
+        - zfs

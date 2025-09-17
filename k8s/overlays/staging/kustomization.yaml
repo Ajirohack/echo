@@ -1,0 +1,194 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: echo-staging
+
+# Reference to base configuration
+resources:
+  - ../../
+
+# Staging-specific namespace
+namespace: echo-staging
+
+# Name suffix for staging
+nameSuffix: -staging
+
+# Staging-specific labels
+commonLabels:
+  environment: staging
+  app.kubernetes.io/instance: echo-staging
+  tier: staging
+
+# Staging-specific annotations
+commonAnnotations:
+  environment: staging
+  config.kubernetes.io/origin: |
+    path: k8s/overlays/staging/kustomization.yaml
+
+# Staging images (use release candidates or specific versions)
+images:
+  - name: echo-app
+    newTag: '1.0.0-rc1'
+  - name: postgres
+    newTag: '15.4-alpine'
+  - name: redis
+    newTag: '7.2-alpine'
+  - name: elasticsearch
+    newTag: '8.11.0'
+  - name: nginx
+    newTag: '1.25.3-alpine'
+  - name: prometheus
+    newTag: 'v2.45.0'
+  - name: grafana
+    newTag: '10.2.0'
+
+# Staging-specific ConfigMaps
+configMapGenerator:
+  - name: echo-staging-config
+    literals:
+      - NODE_ENV=staging
+      - LOG_LEVEL=debug
+      - DEBUG_MODE=true
+      - ENABLE_CORS=true
+      - ENABLE_SWAGGER=true
+      - HOT_RELOAD=false
+      - METRICS_ENABLED=true
+      - HEALTH_CHECK_ENABLED=true
+      - RATE_LIMITING_ENABLED=true
+      - COMPRESSION_ENABLED=true
+      - CACHE_TTL=1800
+      - SESSION_TIMEOUT=3600
+      - MAX_UPLOAD_SIZE=5242880
+      - WORKER_PROCESSES=2
+    behavior: merge
+
+# Staging-specific secrets
+secretGenerator:
+  - name: echo-staging-secrets
+    literals:
+      - JWT_SECRET=staging-jwt-secret-key
+      - ENCRYPTION_KEY=staging-encryption-key
+    type: Opaque
+    behavior: merge
+
+# Staging-specific patches
+patchesStrategicMerge:
+  - deployment-patch.yaml
+  - service-patch.yaml
+
+# JSON patches for staging optimizations
+patches:
+  # Scale for staging environment (smaller than production)
+  - target:
+      kind: Deployment
+      name: echo-app
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 2
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: "512Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: "250m"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "1Gi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: "500m"
+
+  # Scale Nginx for staging
+  - target:
+      kind: Deployment
+      name: echo-nginx
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 2
+
+  # Staging PostgreSQL configuration
+  - target:
+      kind: Deployment
+      name: echo-postgres
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: "1Gi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: "500m"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "2Gi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: "1000m"
+
+  # Staging Redis configuration
+  - target:
+      kind: Deployment
+      name: echo-redis
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: "256Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: "125m"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "512Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: "250m"
+
+  # Staging Elasticsearch configuration
+  - target:
+      kind: Deployment
+      name: echo-elasticsearch
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/env/0/value
+        value: "-Xms1g -Xmx1g"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: "1.5Gi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: "500m"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "2Gi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: "1000m"
+
+  # Add staging annotations for monitoring
+  - target:
+      kind: Deployment
+    patch: |
+      - op: add
+        path: /spec/template/metadata/annotations/prometheus.io~1scrape
+        value: "true"
+      - op: add
+        path: /spec/template/metadata/annotations/prometheus.io~1port
+        value: "8080"
+      - op: add
+        path: /spec/template/metadata/annotations/prometheus.io~1path
+        value: "/metrics"
+
+# Replacements for staging
+replacements:
+  - source:
+      kind: ConfigMap
+      name: echo-staging-config
+      fieldPath: data.NODE_ENV
+    targets:
+      - select:
+          kind: Deployment
+          name: echo-app
+        fieldPaths:
+          - spec.template.spec.containers.[name=echo-app].env.[name=NODE_ENV].value

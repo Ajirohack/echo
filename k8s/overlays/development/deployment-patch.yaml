@@ -1,0 +1,121 @@
+# Development-specific deployment patches
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echo-app
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+        - name: echo-app
+          env:
+            - name: NODE_ENV
+              value: 'development'
+            - name: LOG_LEVEL
+              value: 'debug'
+            - name: DEBUG_MODE
+              value: 'true'
+            - name: ENABLE_CORS
+              value: 'true'
+            - name: ENABLE_SWAGGER
+              value: 'true'
+            - name: HOT_RELOAD
+              value: 'true'
+            - name: WEBPACK_DEV_SERVER
+              value: 'true'
+            - name: REACT_APP_API_URL
+              value: 'http://localhost:30080/api'
+            - name: REACT_APP_WS_URL
+              value: 'ws://localhost:30080/ws'
+          ports:
+            - containerPort: 3000
+              name: dev-server
+              protocol: TCP
+          volumeMounts:
+            - name: source-code
+              mountPath: /app/src
+            - name: node-modules
+              mountPath: /app/node_modules
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+      volumes:
+        - name: source-code
+          hostPath:
+            path: /app/src
+            type: DirectoryOrCreate
+        - name: node-modules
+          emptyDir: {}
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echo-postgres
+spec:
+  template:
+    spec:
+      containers:
+        - name: postgres
+          env:
+            - name: POSTGRES_LOG_STATEMENT
+              value: 'all'
+            - name: POSTGRES_LOG_MIN_DURATION_STATEMENT
+              value: '0'
+            - name: POSTGRES_LOG_LINE_PREFIX
+              value: '%t [%p]: [%l-1] user=%u,db=%d,app=%a,client=%h '
+            - name: POSTGRES_SHARED_PRELOAD_LIBRARIES
+              value: 'pg_stat_statements'
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echo-redis
+spec:
+  template:
+    spec:
+      containers:
+        - name: redis
+          env:
+            - name: REDIS_LOG_LEVEL
+              value: 'debug'
+          command:
+            - redis-server
+            - --loglevel
+            - debug
+            - --save
+            - '60 1'
+            - --appendonly
+            - 'yes'
+            - --appendfsync
+            - 'everysec'
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echo-nginx
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+        - name: nginx
+          env:
+            - name: NGINX_LOG_LEVEL
+              value: 'debug'
+            - name: NGINX_ERROR_LOG_LEVEL
+              value: 'debug'

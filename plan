@@ -1,0 +1,182 @@
+
+Here’s a detailed, prioritized action plan aligned with Echo’s goal: capture audio (mic/system), translate it in real time, and output translated audio to communication platforms, packaged as a cross‑platform Electron app.
+
+Goal statement
+
+- Deliver a reliable, low-latency real-time translation experience in the Electron app, with clear device control, stable room/session lifecycle, and tested pipelines (STT → translate → TTS), ready for packaging/signing.
+
+Guiding principles
+
+- Prioritize reliability and latency over breadth of features.
+- Make one testing strategy the source of truth (eliminate duplication).
+- Keep secrets out of the repo/bundles; centralize config validation.
+- Tight tracing and error handling around audio and provider calls.
+
+Phase 0 — Baseline stability and configuration (Priority: P0, Duration: 0.5–1 day)
+Objectives
+
+- Ensure app runs consistently on dev machines with correct permissions and validated config.
+
+Key tasks
+
+- Permissions and device detection hardening in main process and renderer:
+  - Audit and standardize device enumeration + error paths in <mcfile name="main.js" path="/Volumes/Project Disk/Echo/echo/main.js"></mcfile> and audio IPC handlers <mcfile name="audioHandlers.js" path="/Volumes/Project Disk/Echo/echo/src/ipc/audioHandlers.js"></mcfile>.
+- Config validation and safe loading:
+  - Load .env via dotenv; validate required provider keys; provide descriptive errors and a guided setup path.
+  - Consolidate use of JSON configs in <mcfolder name="config" path="/Volumes/Project Disk/Echo/echo/config"></mcfolder> with a schema-based validator (e.g., zod or hand-rolled) and a single config loader module in <mcfolder name="src/config" path="/Volumes/Project Disk/Echo/echo/src/config"></mcfolder>.
+- Setup script flow:
+  - Ensure <mcfile name="setup-config.js" path="/Volumes/Project Disk/Echo/echo/setup-config.js"></mcfile> updates environment/config and is reflected in the UI on next launch.
+
+Deliverables
+
+- Reliable startup without uncaught config/device errors.
+- Clear error banners in the renderer when audio devices or provider keys are missing.
+- Documented local run steps updated in <mcfile name="README.md" path="/Volumes/Project Disk/Echo/echo/README.md"></mcfile> (one-liners; no extensive docs).
+
+Success metrics
+
+- App launches with working device detection on macOS after granting microphone permission.
+- No secret values written to the packaged bundle or VCS.
+
+Phase 1 — Real-time pipeline completion and integration (Priority: P0, Duration: 2–4 days)
+Objectives
+
+- Build a cohesive, low-latency pipeline connecting capture → STT → translate → TTS → output, using a single orchestrator.
+
+Key tasks
+
+- Select the canonical pipeline location and API:
+  - Choose <mcfolder name="src/services/echo-rtc" path="/Volumes/Project Disk/Echo/echo/src/services/echo-rtc"></mcfolder> as the home for capture + transport, and add a dedicated orchestrator, e.g., RealTimeTranslationPipeline.
+  - Ensure compatibility with existing audio capture modules in <mcfolder name="src/audio" path="/Volumes/Project Disk/Echo/echo/src/audio"></mcfolder> and utilities in <mcfile name="audioUtils.js" path="/Volumes/Project Disk/Echo/echo/src/utils/audioUtils.js"></mcfile>.
+- Implement the orchestrator:
+  - Streaming chunk flow with backpressure and timeouts.
+  - Provider abstraction for STT (<mcfolder name="src/services/stt" path="/Volumes/Project Disk/Echo/echo/src/services/stt"></mcfolder>), Translate (<mcfile name="translator.js" path="/Volumes/Project Disk/Echo/echo/src/utils/translator.js"></mcfile> or move to services), and TTS (<mcfolder name="src/services/tts" path="/Volumes/Project Disk/Echo/echo/src/services/tts"></mcfolder>).
+  - Deterministic eventing for partials/finals and synthesized audio frames.
+- Device routing and render updates:
+  - Renderer status updates (levels, partial transcript, final transcript, translation status) via IPC between <mcfile name="renderer.js" path="/Volumes/Project Disk/Echo/echo/renderer.js"></mcfile> / <mcfile name="index.js" path="/Volumes/Project Disk/Echo/echo/src/renderer/index.js"></mcfile> and main process.
+- Error handling and retries:
+  - Explicit, bounded retries with jitter for transient provider failures; fast-fail and recover for audio pipeline stalls.
+
+Deliverables
+
+- One orchestrator with a single start/stop API used by UI.
+- Real-time flow verified locally with one provider set (e.g., OpenAI/DeepL + ElevenLabs).
+
+Success metrics
+
+- Stable end-to-end latency: < 700 ms for partials and < 1.5 s for finals on a modern Mac.
+- No unhandled promise rejections during 10-minute continuous session.
+
+Phase 2 — Room/session lifecycle and agent integration (Priority: P0, Duration: 2–3 days)
+Objectives
+
+- Provide predictable room/session lifecycle and agent hooks for UX features.
+
+Key tasks
+
+- Room/session manager
+  - Consolidate connect/join/leave/end flows (ensure idempotent operations) inside Echo RTC service or a RoomManager class in <mcfolder name="src/services/echo-rtc" path="/Volumes/Project Disk/Echo/echo/src/services/echo-rtc"></mcfolder>.
+  - Device switches during a session without tearing down the entire pipeline.
+- AI Agents scaffolding
+  - Implement a minimal agent orchestrator in <mcfolder name="src/services/ai-agents" path="/Volumes/Project Disk/Echo/echo/src/services/ai-agents"></mcfolder> that can:
+    - Observe transcripts and emit actions (e.g., auto-language switching, profanity filtering, simple command parsing).
+    - Register hooks into the pipeline (pre-translate, post-translate, pre-tts).
+- UI integration
+  - Add session state + agent toggles in the renderer components under <mcfolder name="src/renderer/components" path="/Volumes/Project Disk/Echo/echo/src/renderer/components"></mcfolder>.
+
+Deliverables
+
+- Consistent session lifecycle with device hot-swap.
+- Basic agent toggle in UI influencing translation behavior.
+
+Success metrics
+
+- Join/leave operations are idempotent; 100% pass rate across 20 repeated cycles.
+- Agent toggled on/off visibly changes behavior (e.g., auto-reply or filtering).
+
+Phase 3 — Testing consolidation and CI hardening (Priority: P0→P1, Duration: 3–5 days)
+Objectives
+
+- Eliminate fragmented test approaches; adopt one primary runner; wire CI to block regressions.
+
+Key tasks
+
+- Decide test runner consolidation:
+  - Short term: Standardize on Jest for Node/Electron and existing test suites to minimize churn using <mcfile name="jest.config.js" path="/Volumes/Project Disk/Echo/echo/jest.config.js"></mcfile> and <mcfile name="jest.e2e.config.js" path="/Volumes/Project Disk/Echo/echo/jest.e2e.config.js"></mcfile>. Keep Vitest for Storybook integration where beneficial; otherwise remove to reduce maintenance, or defer migration plan explicitly in backlog.
+- Organize tests
+  - Co-locate unit tests under src next to modules or keep them in <mcfolder name="src/__tests__" path="/Volumes/Project Disk/Echo/echo/src/__tests__"></mcfolder> consistently; resolve duplicates with <mcfolder name="tests" path="/Volumes/Project Disk/Echo/echo/tests"></mcfolder>.
+  - Integration tests for pipeline (mock providers, real audio buffer fixtures).
+  - E2E smoke using Playwright against Electron.
+  - Accessibility checks with axe-core/puppeteer for main UI flows.
+- CI updates
+  - Ensure <mcfile name="ci.yml" path="/Volumes/Project Disk/Echo/echo/.github/workflows/ci.yml"></mcfile> caches node_modules, runs lint, type-check, unit/integration/e2e, and uploads test reports to <mcfolder name="test-reports" path="/Volumes/Project Disk/Echo/echo/test-reports"></mcfolder>.
+- Coverage gates
+  - Set pragmatic thresholds (e.g., 70% lines/branches for core pipeline and device handling).
+
+Deliverables
+
+- One canonical test command (npm test) running green locally and in CI.
+- E2E smoke validating launch, device detection, and a simple translation cycle.
+
+Success metrics
+
+- CI green in < 10 minutes; flaky tests rate near 0% over a week.
+
+Phase 4 — Packaging, signing, and release readiness (Priority: P1, Duration: 2–4 days)
+Objectives
+
+- Produce signed builds with correct entitlements and predictable update flow.
+
+Key tasks
+
+- Electron Builder configuration polish in <mcfile name="package.json" path="/Volumes/Project Disk/Echo/echo/package.json"></mcfile> (build section)
+  - Fill mac notarization teamId; confirm hardened runtime and microphone entitlement.
+  - DMG/Zip targets tested on Intel and Apple Silicon.
+- Update signing and notarization scripts in <mcfolder name="scripts" path="/Volumes/Project Disk/Echo/echo/scripts"></mcfolder> and assets paths in <mcfolder name="assets" path="/Volumes/Project Disk/Echo/echo/assets"></mcfolder>.
+- Auto-update channel setup (optional for first release).
+
+Deliverables
+
+- Signed DMG/ZIP artifacts in dist with basic smoke testing done.
+
+Success metrics
+
+- Successful install and run on a clean macOS VM with microphone permission prompts working.
+
+Cross-cutting tracks (run parallel when blocked)
+
+- Performance and resource usage
+  - Profile CPU/memory when streaming; ensure backpressure prevents queue buildup.
+- Security
+  - No secrets in logs or renderer; config guarded; consider OS keychain for sensitive tokens.
+- Developer experience
+  - Lint/format/type-check on pre-commit via Husky + lint-staged; consolidate or remove redundant config files.
+- Observability
+  - Structured logs via <mcfile name="logger.js" path="/Volumes/Project Disk/Echo/echo/src/utils/logger.js"></mcfile> and optional debug overlay in UI.
+
+Decision points to confirm up front
+
+- Test runner strategy now: stick with Jest broadly, keep Vitest only where Storybook needs it, or commit to full Vitest migration later.
+- Module system: continue CJS in Electron main and commonJS-compatible services; defer ESM migration until after stabilization.
+- Default provider stack for MVP: pick one per stage (e.g., OpenAI Whisper or Google STT; DeepL or OpenAI Translate; ElevenLabs TTS) and make others backlog.
+
+Timeline and milestones (suggested)
+
+- Week 1: Phase 0 + Phase 1 (baseline + real-time pipeline MVP).
+- Week 2: Phase 2 (session lifecycle + agent hooks) and begin Phase 3 consolidation.
+- Week 3: Finish Phase 3 + Phase 4 packaging/signing; prep RC build.
+
+Immediate next actions (today)
+
+- Confirm test runner consolidation decision.
+- Implement the RealTimeTranslationPipeline orchestrator and wire it to UI:
+  - Start/stop/observe API and IPC hooks.
+- Add minimal AgentOrchestrator in <mcfolder name="src/services/ai-agents" path="/Volumes/Project Disk/Echo/echo/src/services/ai-agents"></mcfolder> with one example rule (e.g., auto target-language detect).
+
+If you want, I can start by:
+
+- Implementing the RealTimeTranslationPipeline orchestrator and its IPC integration, or
+- Setting up the config validator and error surfaces to the UI, or
+- Consolidating the test runner (Jest-first) and making npm test the single source of truth.
+
+Which one should I begin with?

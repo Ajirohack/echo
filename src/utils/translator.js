@@ -1,6 +1,6 @@
 /**
  * Translation Service
- * 
+ *
  * This module provides translation functionality using the configured translation service.
  */
 
